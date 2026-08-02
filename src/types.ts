@@ -112,3 +112,29 @@ export interface Subscription {
   active: boolean;
   logo: string;
 }
+
+export interface InstallmentContract {
+  id: string;
+  item: string;
+  totalAmount: number;
+  parcelValue: number;
+  currentParcel: number;
+  totalParcels: number;
+  cardName: string;
+  startDate?: string;
+  accountId?: string;
+  cardId?: string;
+  category?: string;
+}
+
+export interface InstallmentParcel {
+  id: string;
+  contractId: string;
+  item: string;
+  parcelNumber: number;
+  totalParcels: number;
+  parcelValue: number;
+  dueDate: string;
+  status: 'PAGO' | 'PENDENTE';
+  cardName: string;
+}

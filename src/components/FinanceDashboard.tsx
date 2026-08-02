@@ -55,7 +55,8 @@ import { AiCoachScreen } from './screens/AiCoachScreen';
 import { SplitExpensesScreen } from './screens/SplitExpensesScreen';
 import { UserManagementScreen, UserAccount, AVAILABLE_SCREENS } from './screens/UserManagementScreen';
 
-import { Transaction, BankAccount, CreditCard, FinancialGoal, Subscription, Investment } from '../types';
+import { Transaction, BankAccount, CreditCard, FinancialGoal, Subscription, Investment, InstallmentContract } from '../types';
+import { FinancialEngine } from '../services/financialEngine';
 
 interface FinanceDashboardProps {
   onLogApiCall?: (log: {
@@ -382,6 +383,16 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     return Array.isArray(parsed) ? parsed.filter((i: any) => !['inv_01', 'inv_02'].includes(i.id)) : [];
   });
 
+  const [installments, setInstallments] = useState<InstallmentContract[]>(() => {
+    const cached = localStorage.getItem('financas_pro_installments');
+    const parsed = cached ? JSON.parse(cached) : [];
+    return Array.isArray(parsed) ? parsed.filter((inst: any) => !['ins_01', 'ins_02', 'ins_03'].includes(inst.id)) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('financas_pro_installments', JSON.stringify(installments));
+  }, [installments]);
+
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const cached = localStorage.getItem('financas_pro_transactions');
     const parsed = cached ? JSON.parse(cached) : [];
@@ -697,40 +708,33 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     return transactions.filter(t => t.date.startsWith(activeMonth));
   }, [transactions, activeMonth]);
 
+  // Central Engine calculations
+  const engineSummary = useMemo(() => {
+    return FinancialEngine.calculateMonthlySummary(
+      activeMonth,
+      transactions,
+      accounts,
+      cards,
+      installments,
+      subscriptions,
+      goals
+    );
+  }, [activeMonth, transactions, accounts, cards, installments, subscriptions, goals]);
+
   const kpis = useMemo(() => {
-    let totalIn = 0;
-    let totalOut = 0;
-    let totalInvested = 0;
-
-    activeTransactions.forEach(t => {
-      if (t.type === 'RECEITA') {
-        totalIn += t.amount;
-      } else if (t.type === 'DESPESA') {
-        totalOut += t.amount;
-      } else if (t.type === 'INVESTIMENTO') {
-        totalInvested += t.amount;
-      }
-    });
-
-    const currentBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
-    const economy = totalIn - totalOut;
-
     return {
-      balance: currentBalance,
-      income: totalIn,
-      expense: totalOut,
-      economy: economy,
-      invested: totalInvested
+      balance: engineSummary.totalAccountBalance,
+      income: engineSummary.monthlyIncome,
+      expense: engineSummary.monthlyExpense,
+      economy: engineSummary.economy,
+      invested: engineSummary.totalInvestments
     };
-  }, [activeTransactions, accounts]);
+  }, [engineSummary]);
 
-  // Derived 10-second visual cockpit metrics
+  // Derived visual cockpit metrics via FinancialEngine
   const cockpitStats = useMemo(() => {
-    const totalAccountBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
-    const totalInvestments = investments.reduce((acc, i) => acc + i.currentAmount, 0);
-    const patrimonioTotal = totalAccountBalance + totalInvestments;
+    const patrimonioTotal = FinancialEngine.calculateNetWorth(accounts, investments, cards, transactions, installments);
     
-    // Configurable/Standardized monthly planning limit calculated dynamically from Category Limits
     let dynamicCategoryLimitsSum = 0;
     try {
       const cachedLimits = localStorage.getItem('financas_clean_category_limits');
@@ -746,27 +750,13 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     const percentualUtilizado = Math.min(100, Math.round((kpis.expense / budgetLimit) * 100));
     const quantoPodeGastar = Math.max(0, budgetLimit - kpis.expense);
     
-    // Subscriptions and predicted regular recurring outlays
     const recurringOutlays = subscriptions.reduce((acc, s) => acc + (s.active ? s.amount : 0), 0);
     const gastosPrevistos = kpis.expense + recurringOutlays;
 
-    // Filter status pending bills for overdue alerts
-    const todayStr = '2026-08-01'; // simulated baseline competency today
-    const contasVencidas = transactions.filter(t => t.status === 'PENDENTE' && t.date < todayStr).length;
-    const contasVencemHoje = transactions.filter(t => t.status === 'PENDENTE' && t.date === todayStr).length;
-    
-    const proximosVencimentosList = transactions.filter(t => 
-      t.status === 'PENDENTE' && t.date > todayStr && t.date <= '2026-08-10'
-    ).map(t => ({
-      description: t.description,
-      amount: t.amount,
-      date: t.date
-    }));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcoming = FinancialEngine.calculateUpcomingBills(todayStr, transactions, subscriptions, installments);
 
-    // Credit card current consolidated statements
-    const faturaCartao = activeTransactions.filter(t => t.cardId).reduce((acc, t) => acc + t.amount, 0);
-    
-    // Savings target progress metrics
+    const faturaCartao = cards.reduce((acc, c) => acc + c.usedLimit, 0);
     const metaMensal = goals.reduce((acc, g) => acc + g.targetAmount, 0);
 
     return {
@@ -775,40 +765,18 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
       percentualUtilizado,
       quantoPodeGastar,
       gastosPrevistos,
-      contasVencidas,
-      contasVencemHoje,
-      proximosVencimentosList,
+      contasVencidas: upcoming.contasVencidasCount,
+      contasVencemHoje: upcoming.contasVenceHojeCount,
+      proximosVencimentosList: upcoming.proximosVencimentosList,
       faturaCartao,
       metaMensal
     };
-  }, [accounts, investments, transactions, kpis, subscriptions, activeTransactions, goals]);
+  }, [accounts, investments, cards, transactions, installments, kpis.expense, subscriptions, goals]);
 
-  // Category chart aggregates for Active month
+  // Category chart aggregates from FinancialEngine
   const categoryStats = useMemo(() => {
-    const map: Record<string, number> = {};
-    let totalOut = 0;
-
-    activeTransactions.filter(t => t.type === 'DESPESA').forEach(t => {
-      map[t.category] = (map[t.category] || 0) + t.amount;
-      totalOut += t.amount;
-    });
-
-    const colors: Record<string, string> = {
-      'Alimentação': 'bg-rose-500',
-      'Transporte': 'bg-teal-500',
-      'Moradia': 'bg-indigo-500',
-      'Lazer': 'bg-purple-500',
-      'Saúde': 'bg-emerald-500',
-      'Assinaturas': 'bg-amber-500'
-    };
-
-    return Object.entries(map).map(([cat, val]) => ({
-      name: cat,
-      value: val,
-      percentage: totalOut > 0 ? Math.round((val / totalOut) * 100) : 0,
-      color: colors[cat] || 'bg-slate-400'
-    })).sort((a, b) => b.value - a.value);
-  }, [activeTransactions]);
+    return engineSummary.categoryStats;
+  }, [engineSummary]);
 
   // Action methods to update general database state
   const handleAddTransaction = (newTxn: Transaction) => {
@@ -2250,6 +2218,12 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
               setScreen={setActiveScreen as any}
               transactions={transactions}
               investments={investments}
+              accounts={accounts}
+              cards={cards}
+              installments={installments}
+              subscriptions={subscriptions}
+              goals={goals}
+              activeMonth={activeMonth}
               onAddInvestment={handleAddInvestment}
             />
           )}
