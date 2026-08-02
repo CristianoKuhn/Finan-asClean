@@ -1368,7 +1368,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
         </header>
 
         {/* 3. Screen Router Grid block */}
-        <div className={`p-6 w-full flex-1 ${isMobileEmulated ? 'flex items-center justify-center py-10 bg-slate-950/40' : 'max-w-7xl mx-auto'}`}>
+        <div className={`p-6 w-full flex-1 ${isMobileEmulated ? 'flex items-center justify-center py-10 bg-slate-950/40' : 'w-full max-w-[1750px] mx-auto'}`}>
           <PhoneEmulatorWrapper enabled={isMobileEmulated} onDisable={() => setIsMobileEmulated(false)}>
             {isAuthScreenActive && (
               <AuthScreens 

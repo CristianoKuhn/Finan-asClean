@@ -19,7 +19,10 @@ import {
   PiggyBank, 
   DollarSign, 
   Sliders,
-  CheckCircle2
+  CheckCircle2,
+  Edit2,
+  X,
+  Save
 } from 'lucide-react';
 import { BankAccount, CreditCard, Transaction } from '../../types';
 
@@ -67,38 +70,87 @@ export function OrganizationScreens({
     }
   }, [selectedCardLimitId, cards]);
 
+  // Category limits state with localStorage persistence
+  const [categoryLimits, setCategoryLimits] = useState<Record<string, number>>(() => {
+    const cached = localStorage.getItem('financas_clean_category_limits');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch (e) {}
+    }
+    return {
+      'Alimentação': 1200.00,
+      'Transporte': 600.00,
+      'Moradia': 3000.00,
+      'Lazer': 800.00,
+      'Saúde': 500.00,
+      'Assinaturas': 200.00,
+      'Educação': 1000.00,
+      'Outros': 500.00
+    };
+  });
+
+  // Category editing state
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingLimitValue, setEditingLimitValue] = useState<string>('');
+  
+  // Right side panel state for adjusting limits
+  const [selectedCatForForm, setSelectedCatForForm] = useState<string>('Alimentação');
+  const [formLimitValue, setFormLimitValue] = useState<string>('1200');
+  const [customCatInput, setCustomCatInput] = useState<string>('');
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<boolean>(false);
+
+  const saveCategoryLimit = (catName: string, newLimitNum: number) => {
+    if (!catName || isNaN(newLimitNum) || newLimitNum < 0) return;
+    setCategoryLimits(prev => {
+      const updated = { ...prev, [catName.trim()]: newLimitNum };
+      localStorage.setItem('financas_clean_category_limits', JSON.stringify(updated));
+      return updated;
+    });
+    setSaveSuccessMsg(true);
+    setTimeout(() => setSaveSuccessMsg(false), 3000);
+  };
+
   // CATEGORIES DEFINITION & METRICS (Sovereign Budget)
   const categoryBudgets = useMemo(() => {
-    // Standard limits per category
-    const budgets: Record<string, { limit: number; color: string; icon: string }> = {
-      'Alimentação': { limit: 1200.00, color: 'bg-rose-500 text-rose-500', icon: '🍔' },
-      'Transporte': { limit: 600.00, color: 'bg-teal-500 text-teal-500', icon: '🚗' },
-      'Moradia': { limit: 3000.00, color: 'bg-indigo-500 text-indigo-500', icon: '🏠' },
-      'Lazer': { limit: 800.00, color: 'bg-purple-500 text-purple-500', icon: '🍿' },
-      'Saúde': { limit: 500.00, color: 'bg-emerald-500 text-emerald-500', icon: '💊' },
-      'Assinaturas': { limit: 200.00, color: 'bg-amber-500 text-amber-500', icon: '💳' },
+    const categoryIcons: Record<string, string> = {
+      'Alimentação': '🍔',
+      'Transporte': '🚗',
+      'Moradia': '🏠',
+      'Lazer': '🍿',
+      'Saúde': '💊',
+      'Assinaturas': '💳',
+      'Educação': '🎓',
+      'Outros': '📦'
     };
 
     // Calculate current spending for active month
     const spendings: Record<string, number> = {};
     transactions.filter(t => t.type === 'DESPESA').forEach(t => {
-      spendings[t.category] = (spendings[t.category] || 0) + t.amount;
+      const cat = t.category || 'Outros';
+      spendings[cat] = (spendings[cat] || 0) + t.amount;
     });
 
-    return Object.entries(budgets).map(([cat, data]) => {
+    const allCategories = Array.from(new Set([...Object.keys(categoryLimits), ...Object.keys(spendings)]));
+
+    return allCategories.map(cat => {
+      const limit = categoryLimits[cat] ?? 1000.00;
       const spent = spendings[cat] || 0;
-      const progress = Math.min(Math.round((spent / data.limit) * 100), 100);
+      const rawProgress = limit > 0 ? (spent / limit) * 100 : 0;
+      const progress = Math.min(Math.round(rawProgress), 100);
+      const icon = categoryIcons[cat] || '🏷️';
       return {
         name: cat,
-        limit: data.limit,
+        limit,
         spent,
         progress,
-        colorClass: data.color,
-        icon: data.icon,
-        isOverBudget: spent > data.limit
+        rawProgress,
+        icon,
+        isOverBudget: spent > limit
       };
     });
-  }, [transactions]);
+  }, [categoryLimits, transactions]);
 
   // Handlers
   const handleAddAccountSubmit = (e: React.FormEvent) => {
@@ -153,76 +205,203 @@ export function OrganizationScreens({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-white font-display">Controle de Limites por Categoria</h2>
-            <p className="text-xs text-slate-400">Defina orçamentos mensais para evitar gastos impulsivos</p>
+            <p className="text-xs text-slate-400">Defina e edite os orçamentos teto mensais para manter suas finanças em dia</p>
           </div>
+          {saveSuccessMsg && (
+            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-medium animate-in fade-in duration-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Limite atualizado com sucesso!</span>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* List of active budgets progress */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
-            <h3 className="font-bold text-sm text-white font-display">Orçamentos de Limite</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* List of active budgets progress (7 cols) */}
+          <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-sm text-white font-display">Orçamentos & Consumo por Categoria</h3>
+              <span className="text-[11px] text-slate-400">Clique em <Edit2 className="w-3 h-3 inline text-teal-400 mx-0.5" /> para editar</span>
+            </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              O Finanças Clean monitora de forma inteligente suas planilhas de lançamentos para avisar quando sua taxa de consumo de categoria estiver em perigo.
+              Monitore seu consumo mensal comparado ao limite máximo configurado para cada tipo de gasto.
             </p>
 
-            <div className="space-y-4 pt-2">
-              {categoryBudgets.map(cat => (
-                <div key={cat.name} className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-white flex items-center gap-1.5">
-                      <span>{cat.icon}</span> {cat.name}
-                    </span>
-                    <span className="font-mono text-slate-400">
-                      R$ {cat.spent.toFixed(2)} / <strong className="text-slate-300">R$ {cat.limit.toFixed(2)}</strong>
-                    </span>
-                  </div>
+            <div className="space-y-3 pt-2">
+              {categoryBudgets.map(cat => {
+                const isEditingThis = editingCategory === cat.name;
 
-                  {/* Progressive Bar */}
-                  <div className="w-full bg-slate-850 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${cat.isOverBudget ? 'bg-rose-500' : cat.progress > 85 ? 'bg-amber-500' : 'bg-teal-500'}`}
-                      style={{ width: `${cat.progress}%` }}
-                    ></div>
-                  </div>
-
-                  <div className="flex justify-between text-[10px] text-slate-500">
-                    <span>Taxa de consumo: {cat.progress}%</span>
-                    {cat.isOverBudget ? (
-                      <span className="text-rose-400 font-bold flex items-center gap-0.5">
-                        <AlertTriangle className="w-3 h-3" /> Orçamento estourado
+                return (
+                  <div key={cat.name} className="p-3.5 bg-slate-950/50 border border-slate-850 hover:border-slate-800 rounded-xl space-y-2.5 transition-all">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-white flex items-center gap-2">
+                        <span className="text-base">{cat.icon}</span> {cat.name}
                       </span>
-                    ) : (
-                      <span className="text-teal-400 font-semibold">Consumo saudável</span>
-                    )}
+
+                      {isEditingThis ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-slate-400 font-mono">R$</span>
+                          <input 
+                            type="number"
+                            step="50"
+                            className="w-24 bg-slate-900 border border-teal-500 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-teal-400"
+                            value={editingLimitValue}
+                            onChange={(e) => setEditingLimitValue(e.target.value)}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              saveCategoryLimit(cat.name, parseFloat(editingLimitValue));
+                              setEditingCategory(null);
+                            }}
+                            className="p-1 bg-teal-600 hover:bg-teal-500 text-white rounded cursor-pointer transition-colors"
+                            title="Salvar Limite"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingCategory(null)}
+                            className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded cursor-pointer transition-colors"
+                            title="Cancelar"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-slate-400">
+                            R$ {cat.spent.toFixed(2)} / <strong className="text-slate-200 font-bold">R$ {cat.limit.toFixed(2)}</strong>
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditingCategory(cat.name);
+                              setEditingLimitValue(cat.limit.toString());
+                            }}
+                            className="p-1 text-slate-400 hover:text-teal-400 hover:bg-slate-800/80 rounded transition-colors cursor-pointer"
+                            title="Editar limite desta categoria"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progressive Bar */}
+                    <div className="w-full bg-slate-850 h-2.5 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ${cat.isOverBudget ? 'bg-rose-500' : cat.progress > 85 ? 'bg-amber-500' : 'bg-teal-500'}`}
+                        style={{ width: `${cat.progress}%` }}
+                      ></div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] text-slate-500 font-sans">
+                      <span>Taxa de consumo: <strong className="font-mono text-slate-300">{cat.progress}%</strong></span>
+                      {cat.isOverBudget ? (
+                        <span className="text-rose-400 font-bold flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Excedeu teto de R$ {(cat.spent - cat.limit).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-teal-400 font-semibold">
+                          R$ {(cat.limit - cat.spent).toFixed(2)} disponível
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* Budget Simulator Advice (SOLID) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 flex flex-col justify-between">
+          {/* Quick Adjust Limit Form & Information (5 cols) */}
+          <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 flex flex-col justify-between shadow-sm">
             <div className="space-y-4">
-              <div className="w-12 h-12 bg-indigo-950/50 border border-indigo-900/40 rounded-xl flex items-center justify-center text-indigo-400">
-                <Sliders className="w-6 h-6" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-950/60 border border-indigo-900/50 rounded-xl flex items-center justify-center text-indigo-400 shrink-0">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white font-display">Ajustar Teto de Categoria</h3>
+                  <p className="text-[11px] text-slate-400">Edite ou adicione um limite personalizado</p>
+                </div>
               </div>
-              <h3 className="text-base font-bold text-white font-display">Por que definir metas?</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Estudos de educação financeira demonstram que usuários que definem limites explícitos de consumo conseguem economizar em média **22% a mais** nos primeiros 3 meses de utilização.
-              </p>
-              <div className="p-4 bg-indigo-950/10 border border-indigo-900/20 rounded-xl flex gap-2.5 text-xs text-indigo-300">
-                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const targetCat = customCatInput.trim() || selectedCatForForm;
+                  const limitVal = parseFloat(formLimitValue);
+                  if (targetCat && !isNaN(limitVal)) {
+                    saveCategoryLimit(targetCat, limitVal);
+                    setCustomCatInput('');
+                  }
+                }}
+                className="space-y-3 bg-slate-950/40 p-4 border border-slate-850 rounded-xl"
+              >
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">Selecionar Categoria</label>
+                  <select
+                    className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                    value={selectedCatForForm}
+                    onChange={(e) => {
+                      setSelectedCatForForm(e.target.value);
+                      const existing = categoryBudgets.find(b => b.name === e.target.value);
+                      if (existing) setFormLimitValue(existing.limit.toString());
+                    }}
+                  >
+                    {categoryBudgets.map(b => (
+                      <option key={b.name} value={b.name}>{b.icon} {b.name} (Atual: R$ {b.limit})</option>
+                    ))}
+                    <option value="NOVA_CATEGORIA">+ Criar Nova Categoria Customizada</option>
+                  </select>
+                </div>
+
+                {selectedCatForForm === 'NOVA_CATEGORIA' && (
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-300 mb-1">Nome da Nova Categoria</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Pets, Viagens, Estudos..."
+                      className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                      value={customCatInput}
+                      onChange={(e) => setCustomCatInput(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">Novo Teto Mensal (R$)</label>
+                  <input
+                    type="number"
+                    step="50"
+                    placeholder="Ex: 1500"
+                    className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                    value={formLimitValue}
+                    onChange={(e) => setFormLimitValue(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> Salvar Teto Orçamentário
+                </button>
+              </form>
+
+              <div className="p-3.5 bg-indigo-950/20 border border-indigo-900/30 rounded-xl flex gap-2.5 text-xs text-indigo-300 leading-relaxed">
+                <Info className="w-4 h-4 shrink-0 mt-0.5 text-indigo-400" />
                 <span>
-                  <strong>Configuração Sincronizada:</strong> Suas categorias são cadastradas diretamente na aba <code>Categorias</code> da sua planilha pessoal. Mudanças na planilha atualizam os limites automaticamente.
+                  <strong>Dica de Planejamento:</strong> Limites salvos são sincronizados com seu navegador e refletem automaticamente no simulador financeiro e nos alertas do AI Coach.
                 </span>
               </div>
             </div>
 
             <button
               onClick={() => setScreen('novo_lancamento')}
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer transition-colors text-center"
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold rounded-lg text-xs cursor-pointer transition-colors text-center border border-slate-700"
             >
-              Planejar Novo Lançamento
+              + Planejar Novo Lançamento
             </button>
           </div>
         </div>
