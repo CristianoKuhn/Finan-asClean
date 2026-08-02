@@ -190,19 +190,19 @@ export function SplitExpensesScreen({
     const absRefund = Math.abs(calculations.totalAExtornar);
     const text = `📊 *Controle de Gastos 2026 - Fechamento ${activeMonth}*
     
-• *Total de Despesas Fixas:* R$ ${calculations.totalFixas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-• *Total de Despesas Extras:* R$ ${calculations.totalExtras.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-• *Total de Entradas:* R$ ${calculations.totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+• *Total de Despesas Fixas:* R$ {(calculations.totalFixas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+• *Total de Despesas Extras:* R$ {(calculations.totalExtras ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+• *Total de Entradas:* R$ {(calculations.totalEntradas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 
 💸 *Reembolso / Acerto de Contas:*
-- *Total a Extornar:* R$ ${absRefund.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${isCrisPays ? 'Cris paga Ale' : 'Ale paga Cris'})
+- *Total a Extornar:* R$ {(absRefund ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${isCrisPays ? 'Cris paga Ale' : 'Ale paga Cris'})
 
 💰 *Saldos de Economia:*
-- *Economizado este Mês:* R$ ${economizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-- *Patrimônio Acumulado:* R$ ${acumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-- *Sobra em Carteira Final:* R$ ${calculations.totalSobraEmCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+- *Economizado este Mês:* R$ {(economizado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+- *Patrimônio Acumulado:* R$ {(acumulado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+- *Sobra em Carteira Final:* R$ {(calculations.totalSobraEmCarteira ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 
-⚠️ *Pendentes de Reembolso:* R$ ${calculations.totalPendenteExtorno.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Jan + Mai)
+⚠️ *Pendentes de Reembolso:* R$ {(calculations.totalPendenteExtorno ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Jan + Mai)
 
 _Mensagem gerada automaticamente pelo Mentor Pro._`;
 
@@ -245,21 +245,21 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
           <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
             <p className="text-[9px] text-slate-500 uppercase font-mono font-bold">Total Despesas Bruto</p>
             <p className="text-sm font-extrabold text-white mt-0.5 font-mono">
-              R$ {calculations.totalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(calculations.totalBruto ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
 
           <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
             <p className="text-[9px] text-slate-500 uppercase font-mono font-bold">Total Entradas</p>
             <p className="text-sm font-extrabold text-emerald-400 mt-0.5 font-mono">
-              R$ {calculations.totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(calculations.totalEntradas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
 
           <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
             <p className="text-[9px] text-slate-500 uppercase font-mono font-bold">Total a Extornar</p>
             <p className={`text-sm font-black mt-0.5 font-mono ${calculations.totalAExtornar > 0 ? 'text-rose-400' : 'text-teal-400'}`}>
-              R$ {Math.abs(calculations.totalAExtornar).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {Math.abs(calculations.totalAExtornar ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <span className="text-[8px] text-slate-400 font-bold block mt-0.5">
               {calculations.totalAExtornar > 0 ? '👉 Cris paga Ale' : '👈 Ale paga Cris'}
@@ -269,17 +269,17 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
           <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
             <p className="text-[9px] text-slate-500 uppercase font-mono font-bold">Sobra em Carteira</p>
             <p className="text-sm font-extrabold text-teal-400 mt-0.5 font-mono">
-              R$ {calculations.totalSobraEmCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(calculations.totalSobraEmCarteira ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
 
           <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl col-span-2 md:col-span-1">
             <p className="text-[9px] text-slate-500 uppercase font-mono font-bold">Economizado / Acumulado</p>
             <p className="text-sm font-extrabold text-amber-400 mt-0.5 font-mono">
-              R$ {acumulado.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+              R$ {(acumulado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
             </p>
             <span className="text-[8px] text-slate-400 block mt-0.5 font-mono">
-              Este mês: R$ {economizado.toLocaleString('pt-BR')}
+              Este mês: R$ {(economizado ?? 0).toLocaleString('pt-BR')}
             </span>
           </div>
         </div>
@@ -313,7 +313,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold text-white">{item.description}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono text-slate-500">R$ {item.amount.toLocaleString('pt-BR')}</span>
+                        <span className="text-[9px] font-mono text-slate-500">R$ {(item.amount ?? 0).toLocaleString('pt-BR')}</span>
                         <span className={`px-1 py-0.2 rounded text-[8px] font-bold ${item.paidBy === 'Ale' ? 'bg-purple-950/40 text-purple-400' : 'bg-teal-950/40 text-teal-400'}`}>
                           {item.paidBy === 'Ale' ? 'Pago(Ale)' : 'Pago(Cris)'}
                         </span>
@@ -324,7 +324,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                       <div>
                         <p className="text-[8px] text-slate-500 uppercase font-mono">A Extornar</p>
                         <p className={`text-[10px] font-bold font-mono ${item.refundAmount < 0 ? 'text-teal-400' : 'text-rose-400'}`}>
-                          {item.refundAmount === 0 ? '-' : `R$ ${item.refundAmount.toLocaleString('pt-BR')}`}
+                          {item.refundAmount === 0 ? '-' : `R$ ${(item.refundAmount ?? 0).toLocaleString('pt-BR')}`}
                         </p>
                       </div>
                       <button
@@ -342,11 +342,11 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
               <div className="pt-3 border-t border-slate-850 mt-3 space-y-1 bg-slate-900 z-10">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Subtotal:</span>
-                  <span className="font-mono font-bold text-white">R$ {calculations.totalFixas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-white">R$ {(calculations.totalFixas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Extorno:</span>
-                  <span className="font-mono font-bold text-rose-400">R$ {calculations.extornarFixas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-rose-400">R$ {(calculations.extornarFixas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -370,7 +370,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold text-white">{item.description}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono text-slate-500">R$ {item.amount.toLocaleString('pt-BR')}</span>
+                        <span className="text-[9px] font-mono text-slate-500">R$ {(item.amount ?? 0).toLocaleString('pt-BR')}</span>
                         <span className={`px-1 py-0.2 rounded text-[8px] font-bold ${item.paidBy === 'Ale' ? 'bg-purple-950/40 text-purple-400' : 'bg-teal-950/40 text-teal-400'}`}>
                           {item.paidBy === 'Ale' ? 'Pago(Ale)' : 'Pago(Cris)'}
                         </span>
@@ -381,7 +381,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                       <div>
                         <p className="text-[8px] text-slate-500 uppercase font-mono">A Extornar</p>
                         <p className={`text-[10px] font-bold font-mono ${item.refundAmount < 0 ? 'text-teal-400' : 'text-rose-400'}`}>
-                          {item.refundAmount === 0 ? '-' : `R$ ${item.refundAmount.toLocaleString('pt-BR')}`}
+                          {item.refundAmount === 0 ? '-' : `R$ ${(item.refundAmount ?? 0).toLocaleString('pt-BR')}`}
                         </p>
                       </div>
                       <button
@@ -399,11 +399,11 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
               <div className="pt-3 border-t border-slate-850 mt-3 space-y-1 bg-slate-900 z-10">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Subtotal:</span>
-                  <span className="font-mono font-bold text-white">R$ {calculations.totalExtras.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-white">R$ {(calculations.totalExtras ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Extorno:</span>
-                  <span className="font-mono font-bold text-teal-400">R$ {calculations.extornarExtras.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-teal-400">R$ {(calculations.extornarExtras ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -427,7 +427,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold text-white">{item.description}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono text-slate-500 font-bold text-emerald-400">R$ {item.amount.toLocaleString('pt-BR')}</span>
+                        <span className="text-[9px] font-mono text-slate-500 font-bold text-emerald-400">R$ {(item.amount ?? 0).toLocaleString('pt-BR')}</span>
                       </div>
                     </div>
 
@@ -435,7 +435,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                       <div>
                         <p className="text-[8px] text-slate-500 uppercase font-mono">A Extornar</p>
                         <p className={`text-[10px] font-bold font-mono ${item.refundAmount < 0 ? 'text-teal-400' : 'text-rose-400'}`}>
-                          {item.refundAmount === 0 ? '-' : `R$ ${item.refundAmount.toLocaleString('pt-BR')}`}
+                          {item.refundAmount === 0 ? '-' : `R$ ${(item.refundAmount ?? 0).toLocaleString('pt-BR')}`}
                         </p>
                       </div>
                       <button
@@ -453,11 +453,11 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
               <div className="pt-3 border-t border-slate-850 mt-3 space-y-1 bg-slate-900 z-10">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Subtotal:</span>
-                  <span className="font-mono font-bold text-emerald-400">R$ {calculations.totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-emerald-400">R$ {(calculations.totalEntradas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Extorno:</span>
-                  <span className="font-mono font-bold text-teal-400">R$ {calculations.extornarEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-teal-400">R$ {(calculations.extornarEntradas ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -475,14 +475,14 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                 <div key={idx} className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-xl flex justify-between items-center">
                   <div className="space-y-0.5">
                     <p className="text-xs font-bold text-white">{ref.description}</p>
-                    <p className="text-[10px] text-slate-500">Valor original: R$ {ref.amount.toLocaleString('pt-BR')}</p>
+                    <p className="text-[10px] text-slate-500">Valor original: R$ {(ref.amount ?? 0).toLocaleString('pt-BR')}</p>
                   </div>
                   <div className="text-right">
                     <span className="bg-emerald-950/40 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded-full text-[9px] font-bold">
                       {ref.status}
                     </span>
                     <p className="text-[11px] font-mono font-extrabold text-white mt-1">
-                      R$ {(ref.amount / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {((ref.amount ?? 0) / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -499,7 +499,7 @@ _Mensagem gerada automaticamente pelo Mentor Pro._`;
                     Pendente
                   </span>
                   <p className="text-[11px] font-mono font-extrabold text-rose-400 mt-1">
-                    R$ {valorPai.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(valorPai ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>

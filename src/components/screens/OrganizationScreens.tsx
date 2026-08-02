@@ -535,7 +535,7 @@ export function OrganizationScreens({
             <div className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-right">
               <p className="text-[9px] uppercase font-bold text-slate-500 font-mono">Consolidado Total</p>
               <p className="text-sm font-black text-teal-400 font-mono">
-                R$ {totalConsolidado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {(totalConsolidado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -557,7 +557,7 @@ export function OrganizationScreens({
             <div className="text-right font-mono">
               <p className="text-[10px] text-slate-500 uppercase font-bold">Saldo em Carteira</p>
               <p className="text-lg font-black text-emerald-400">
-                R$ {totalCarteira.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {(totalCarteira ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -602,7 +602,7 @@ export function OrganizationScreens({
                 <p className="text-xs text-slate-400">Cadastre, edite ou remova seus bancos e acompanhe os saldos</p>
               </div>
               <span className="text-xs font-mono text-slate-400">
-                Total Bancos: <strong className="text-teal-400">R$ {totalBancos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                Total Bancos: <strong className="text-teal-400">R$ {(totalBancos ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
               </span>
             </div>
 
@@ -716,7 +716,7 @@ export function OrganizationScreens({
                       <div>
                         <p className="text-[9px] text-slate-500 font-mono">Saldo em Banco</p>
                         <h4 className="text-xl font-black font-display text-white mt-0.5">
-                          R$ {acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {(acc.balance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </h4>
                       </div>
                     </div>
@@ -812,7 +812,7 @@ export function OrganizationScreens({
             <div className="text-right font-mono">
               <p className="text-[10px] text-slate-500 uppercase font-bold">Total em Cofres</p>
               <p className="text-lg font-black text-purple-400">
-                R$ {totalCofres.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {(totalCofres ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -831,7 +831,7 @@ export function OrganizationScreens({
 
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm font-bold text-purple-300">
-                      R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(item.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                     <button
                       onClick={() => handleDeleteVault(item.id)}
@@ -971,21 +971,21 @@ export function OrganizationScreens({
                 <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg">
                   <p className="text-[9px] uppercase font-bold text-slate-500 font-mono">Saldo Atual no Cofre</p>
                   <p className="text-base font-black text-purple-400 font-mono mt-0.5">
-                    R$ {totalCofres.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(totalCofres ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg">
                   <p className="text-[9px] uppercase font-bold text-slate-500 font-mono">Falta para a Meta</p>
                   <p className="text-base font-black text-amber-400 font-mono mt-0.5">
-                    R$ {gapToVaultGoal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {(gapToVaultGoal ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg col-span-2 md:col-span-1">
                   <p className="text-[9px] uppercase font-bold text-slate-500 font-mono">Aporte Mensal Necessário</p>
                   <p className="text-base font-black text-teal-400 font-mono mt-0.5">
-                    R$ {requiredMonthlyVaultSave.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}<span className="text-[10px] text-slate-500 font-sans">/mês</span>
+                    R$ {(requiredMonthlyVaultSave ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}<span className="text-[10px] text-slate-500 font-sans">/mês</span>
                   </p>
                 </div>
               </div>
@@ -1018,13 +1018,13 @@ export function OrganizationScreens({
                     {isGoalFeasible ? '✅ Planejamento Totalmente Viável!' : '⚠️ Atenção no Planejamento do Cofre:'}
                   </p>
                   <p className="text-[11px] opacity-90">
-                    Com seu salário médio de <strong>R$ {Number(monthlySalary).toLocaleString('pt-BR')}</strong> e teto de gastos de <strong>R$ {Number(totalCategoryLimitsSum).toLocaleString('pt-BR')}</strong>, sua margem estimada é de <strong>R$ {Number(estimatedMonthlyMargin).toLocaleString('pt-BR')}/mês</strong>.
+                    Com seu salário médio de <strong>R$ {(Number(monthlySalary) || 0).toLocaleString('pt-BR')}</strong> e teto de gastos de <strong>R$ {(Number(totalCategoryLimitsSum) || 0).toLocaleString('pt-BR')}</strong>, sua margem estimada é de <strong>R$ {(Number(estimatedMonthlyMargin) || 0).toLocaleString('pt-BR')}/mês</strong>.
                   </p>
                   <p className="text-[11px] opacity-90">
                     {isGoalFeasible ? (
-                      `Guardando R$ ${requiredMonthlyVaultSave.toFixed(2)} por mês nos próximos ${monthsRemainingInYear} meses, você atingirá com segurança a meta de R$ ${yearEndVaultGoal.toLocaleString('pt-BR')} no Cofre até o fim do ano.`
+                      `Guardando R$ ${(requiredMonthlyVaultSave || 0).toFixed(2)} por mês nos próximos ${monthsRemainingInYear} meses, você atingirá com segurança a meta de R$ ${(yearEndVaultGoal ?? 0).toLocaleString('pt-BR')} no Cofre até o fim do ano.`
                     ) : (
-                      `Você precisará de R$ ${requiredMonthlyVaultSave.toFixed(2)}/mês para o cofre. Recomendamos reduzir R$ ${(requiredMonthlyVaultSave - estimatedMonthlyMargin).toFixed(2)} em seus limites de categoria.`
+                      `Você precisará de R$ ${(requiredMonthlyVaultSave || 0).toFixed(2)}/mês para o cofre. Recomendamos reduzir R$ ${((requiredMonthlyVaultSave || 0) - (estimatedMonthlyMargin || 0)).toFixed(2)} em seus limites de categoria.`
                     )}
                   </p>
                 </div>
@@ -1176,7 +1176,7 @@ export function OrganizationScreens({
                     <div className="space-y-1 relative z-10">
                       <p className="text-[9px] opacity-75">Fatura / Limite Consumido</p>
                       <h5 className="text-lg font-black font-display">
-                        R$ {c.usedLimit.toLocaleString('pt-BR')} / <span className="opacity-80">R$ {c.limit.toLocaleString('pt-BR')}</span>
+                        R$ {(c.usedLimit ?? 0).toLocaleString('pt-BR')} / <span className="opacity-80">R$ {(c.limit ?? 0).toLocaleString('pt-BR')}</span>
                       </h5>
                     </div>
 

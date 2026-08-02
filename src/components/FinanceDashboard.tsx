@@ -1472,7 +1472,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                         '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
                       };
                       return monthNamesStr[activeMonth.substring(5, 7)] || 'Agosto';
-                    })()} de {activeYear}</strong>. Com base no seu orçamento planejado de <strong>R$ 8.500</strong>, você possui <strong>R$ {cockpitStats.quantoPodeGastar.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</strong> livres para gastos discricionários este mês para manter seu ritmo de poupança intacto.
+                    })()} de {activeYear}</strong>. Com base no seu orçamento planejado de <strong>R$ 8.500</strong>, você possui <strong>R$ {(cockpitStats?.quantoPodeGastar ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</strong> livres para gastos discricionários este mês para manter seu ritmo de poupança intacto.
                   </p>
                 </div>
 
@@ -1548,7 +1548,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-xl">
                     <p className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Patrimônio Total</p>
                     <p className="text-base font-black text-white mt-1 font-mono">
-                      R$ {cockpitStats.patrimonioTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(cockpitStats?.patrimonioTotal ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[9px] text-teal-400 font-bold bg-teal-950/20 border border-teal-900/30 px-1 py-0.2 rounded inline-block mt-1 font-mono">
                       Contas + Ações
@@ -1558,11 +1558,11 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   {/* Item 2: Remaining budget to spend */}
                   <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-xl">
                     <p className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Ainda Pode Gastar</p>
-                    <p className={`text-base font-black mt-1 font-mono ${cockpitStats.quantoPodeGastar > 1500 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      R$ {cockpitStats.quantoPodeGastar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <p className={`text-base font-black mt-1 font-mono ${(cockpitStats?.quantoPodeGastar ?? 0) > 1500 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      R$ {(cockpitStats?.quantoPodeGastar ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[9px] text-slate-400 inline-block mt-1">
-                      Limite Planejado: R$ {cockpitStats.budgetLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Limite Planejado: R$ {(cockpitStats?.budgetLimit ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
 
@@ -1570,7 +1570,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-xl">
                     <p className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Previsto até Fim do Mês</p>
                     <p className="text-base font-black text-slate-300 mt-1 font-mono">
-                      R$ {cockpitStats.gastosPrevistos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(cockpitStats?.gastosPrevistos ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[9px] text-slate-400 inline-block mt-1">
                       Lançamentos + SaaS
@@ -1581,7 +1581,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="p-3 bg-slate-950/50 border border-slate-850 rounded-xl">
                     <p className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Fatura do Cartão</p>
                     <p className="text-base font-black text-purple-400 mt-1 font-mono">
-                      R$ {cockpitStats.faturaCartao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(cockpitStats?.faturaCartao ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[9px] text-slate-400 inline-block mt-1">
                       Nubank UV + Visa Infinite
@@ -1628,7 +1628,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="space-y-1">
                     <p className="text-xs text-slate-400 font-medium">Saldo de Contas</p>
                     <p className="text-2xl font-black font-display text-white">
-                      R$ {kpis.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {(kpis?.balance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-teal-400 font-mono flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block animate-pulse"></span>
@@ -1645,7 +1645,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="space-y-1">
                     <p className="text-xs text-slate-400 font-medium">Receitas no Mês</p>
                     <p className="text-2xl font-black font-display text-white">
-                      R$ {kpis.income.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {(kpis?.income ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-0.5">
                       <ArrowUpRight className="w-3.5 h-3.5 inline" /> Entradas ativas
@@ -1661,7 +1661,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                   <div className="space-y-1">
                     <p className="text-xs text-slate-400 font-medium">Despesas no Mês</p>
                     <p className="text-2xl font-black font-display text-white">
-                      R$ {kpis.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {(kpis?.expense ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-rose-400 font-mono flex items-center gap-0.5">
                       <ArrowDownRight className="w-3.5 h-3.5 inline" /> Saídas consolidadas
@@ -1676,14 +1676,14 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                 <div className="bg-slate-900 p-5 border border-slate-800 rounded-2xl flex items-center justify-between shadow-xs">
                   <div className="space-y-1">
                     <p className="text-xs text-slate-400 font-medium">Economia Líquida</p>
-                    <p className={`text-2xl font-black font-display ${kpis.economy >= 0 ? 'text-teal-400' : 'text-rose-400'}`}>
-                      R$ {kpis.economy.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <p className={`text-2xl font-black font-display ${(kpis?.economy ?? 0) >= 0 ? 'text-teal-400' : 'text-rose-400'}`}>
+                      R$ {(kpis?.economy ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 font-mono">
-                      Taxa poupança: {kpis.income > 0 ? Math.round((kpis.economy / kpis.income) * 100) : 0}%
+                      Taxa poupança: {(kpis?.income ?? 0) > 0 ? Math.round(((kpis?.economy ?? 0) / (kpis?.income ?? 1)) * 100) : 0}%
                     </p>
                   </div>
-                  <div className={`p-3 rounded-xl border ${kpis.economy >= 0 ? 'bg-teal-950/30 text-teal-400 border-teal-900/40' : 'bg-rose-950/30 text-rose-400 border-rose-900/40'}`}>
+                  <div className={`p-3 rounded-xl border ${(kpis?.economy ?? 0) >= 0 ? 'bg-teal-950/30 text-teal-400 border-teal-900/40' : 'bg-rose-950/30 text-rose-400 border-rose-900/40'}`}>
                     <TrendingUp className="w-6 h-6" />
                   </div>
                 </div>
@@ -1709,16 +1709,16 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                         🤖 Diagnóstico Atual ({months.find(m => m.value === activeMonth)?.label}):
                       </p>
                       <p className="leading-relaxed">
-                        {kpis.economy >= 0 ? (
-                          `Parabéns, ${userName.split(' ')[0]}! Você economizou R$ ${kpis.economy.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} neste mês (${kpis.income > 0 ? Math.round((kpis.economy / kpis.income) * 100) : 0}% das entradas). Seus gastos com alimentação representam a maior fatia de consumo.`
+                        {(kpis?.economy ?? 0) >= 0 ? (
+                          `Parabéns, ${(userName || '').split(' ')[0]}! Você economizou R$ ${(kpis?.economy ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} neste mês (${(kpis?.income ?? 0) > 0 ? Math.round(((kpis?.economy ?? 0) / (kpis?.income ?? 1)) * 100) : 0}% das entradas). Seus gastos com alimentação representam a maior fatia de consumo.`
                         ) : (
-                          `Atenção, ${userName.split(' ')[0]}! Suas despesas excederam suas receitas em R$ ${Math.abs(kpis.economy).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}. Considere revisar compras parceladas e serviços por assinatura inativos.`
+                          `Atenção, ${(userName || '').split(' ')[0]}! Suas despesas excederam suas receitas em R$ ${Math.abs(kpis?.economy ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}. Considere revisar compras parceladas e serviços por assinatura inativos.`
                         )}
                       </p>
                     </div>
 
                     <div className="text-[11px] text-slate-400 leading-relaxed pl-1">
-                      💡 <strong>Dica da IA:</strong> Seu patrimônio líquido total está em R$ {cockpitStats.patrimonioTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}. Focar em investir {kpis.income > 0 ? Math.round(kpis.income * 0.1) : 100} reais adicionais este mês acelerará sua meta de <em>{goals[0]?.name || 'Reserva de Emergência'}</em> em 3 meses!
+                      💡 <strong>Dica da IA:</strong> Seu patrimônio líquido total está em R$ {(cockpitStats?.patrimonioTotal ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}. Focar em investir {(kpis?.income ?? 0) > 0 ? Math.round((kpis?.income ?? 0) * 0.1) : 100} reais adicionais este mês acelerará sua meta de <em>{goals[0]?.name || 'Reserva de Emergência'}</em> em 3 meses!
                     </div>
                   </div>
 
@@ -1825,7 +1825,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
 
                             <div className="text-right">
                               <p className={`text-xs font-bold font-mono ${t.type === 'RECEITA' ? 'text-emerald-400' : 'text-white'}`}>
-                                {t.type === 'RECEITA' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {t.type === 'RECEITA' ? '+' : '-'} R$ {(t.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                               <span className="text-[9px] text-teal-400 font-bold bg-teal-950/40 border border-teal-900/30 px-1.5 py-0.2 rounded inline-block mt-0.5">
                                 Sheets Sync
@@ -1847,7 +1847,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                       {accounts.map(a => (
                         <div key={a.id} className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl space-y-1">
                           <p className="text-[10px] text-slate-500 font-bold uppercase">{a.name}</p>
-                          <p className="text-sm font-black font-mono text-white">R$ {a.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          <p className="text-sm font-black font-mono text-white">R$ {(a.balance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                       ))}
                     </div>
@@ -1877,7 +1877,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                                 {stat.name}
                               </span>
                               <span className="text-white font-bold font-mono">
-                                R$ {stat.value.toLocaleString('pt-BR')} ({stat.percentage}%)
+                                R$ {(stat.value ?? 0).toLocaleString('pt-BR')} ({stat.percentage}%)
                               </span>
                             </div>
 
@@ -2027,7 +2027,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                             <span className="text-[9px] bg-slate-900 border border-slate-800 px-1.5 py-0.2 rounded text-slate-500 font-mono font-medium uppercase">{acc.type}</span>
                           </div>
                           <span className="text-xs font-black font-mono text-emerald-400 shrink-0">
-                            R$ {acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {(acc.balance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                       ))}
@@ -2050,7 +2050,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
 
                     <div className="space-y-4">
                       {cards.map(card => {
-                        const percentUsed = Math.min(100, Math.round((card.usedLimit / card.limit) * 100));
+                        const percentUsed = card.limit ? Math.min(100, Math.round(((card.usedLimit ?? 0) / card.limit) * 100)) : 0;
                         return (
                           <div key={card.id} className="p-4 bg-slate-950 border border-slate-850 rounded-xl space-y-3">
                             <div className="flex justify-between items-start gap-3">
@@ -2059,8 +2059,8 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                                 <p className="text-[10px] text-slate-500 font-mono mt-0.5">Vencimento Dia {card.invoiceDueDay} • Fechamento Dia {card.invoiceClosingDay}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs font-bold text-rose-400 font-mono">Usado: R$ {card.usedLimit.toLocaleString('pt-BR')}</p>
-                                <p className="text-[9px] text-slate-500 font-mono mt-0.5">Limite: R$ {card.limit.toLocaleString('pt-BR')}</p>
+                                <p className="text-xs font-bold text-rose-400 font-mono">Usado: R$ {(card.usedLimit ?? 0).toLocaleString('pt-BR')}</p>
+                                <p className="text-[9px] text-slate-500 font-mono mt-0.5">Limite: R$ {(card.limit ?? 0).toLocaleString('pt-BR')}</p>
                               </div>
                             </div>
 
@@ -2074,7 +2074,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                               </div>
                               <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono">
                                 <span>{percentUsed}% Utilizado</span>
-                                <span className="text-teal-400">R$ {card.availableLimit.toLocaleString('pt-BR')} Disponíveis</span>
+                                <span className="text-teal-400">R$ {(card.availableLimit ?? 0).toLocaleString('pt-BR')} Disponíveis</span>
                               </div>
                             </div>
                           </div>
@@ -2095,7 +2095,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                         <Clock className="w-4 h-4 text-purple-400" /> Assinaturas & Recorrências
                       </h3>
                       <span className="text-[10px] bg-purple-950 text-purple-400 px-1.5 rounded font-bold font-mono">
-                        R$ {subscriptions.reduce((sum, s) => sum + (s.active ? s.amount : 0), 0).toFixed(2)}/mês
+                        R$ {subscriptions.reduce((sum, s) => sum + (s.active ? (s.amount ?? 0) : 0), 0).toFixed(2)}/mês
                       </span>
                     </div>
 
@@ -2109,7 +2109,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                               <p className="text-[10px] text-slate-500">Vence dia {sub.dueDate}</p>
                             </div>
                           </div>
-                          <strong className="text-slate-300 font-mono">R$ {sub.amount.toFixed(2)}</strong>
+                          <strong className="text-slate-300 font-mono">R$ {(sub.amount ?? 0).toFixed(2)}</strong>
                         </div>
                       ))}
                     </div>
@@ -2131,13 +2131,13 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
 
                     <div className="space-y-3">
                       {goals.map(goal => {
-                        const percent = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100));
+                        const percent = goal.targetAmount ? Math.min(100, Math.round(((goal.currentAmount ?? 0) / goal.targetAmount) * 100)) : 0;
                         return (
                           <div key={goal.id} className="p-3 bg-slate-950 border border-slate-850 rounded-xl space-y-2.5">
                             <div className="flex justify-between items-start gap-2">
                               <div>
                                 <p className="text-xs font-bold text-white">{goal.name}</p>
-                                <p className="text-[9px] text-slate-500 font-mono mt-0.5">Alvo: R$ {goal.targetAmount.toLocaleString('pt-BR')}</p>
+                                <p className="text-[9px] text-slate-500 font-mono mt-0.5">Alvo: R$ {(goal.targetAmount ?? 0).toLocaleString('pt-BR')}</p>
                               </div>
                               <span className="text-[10px] font-black text-teal-400 font-mono">{percent}%</span>
                             </div>
@@ -2147,7 +2147,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                             </div>
 
                             <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                              <span>Acumulado: R$ {goal.currentAmount.toLocaleString('pt-BR')}</span>
+                              <span>Acumulado: R$ {(goal.currentAmount ?? 0).toLocaleString('pt-BR')}</span>
                             </div>
                           </div>
                         );

@@ -166,7 +166,7 @@ export function SearchScreens({
 
                     <div className="text-right">
                       <p className={`text-xs font-bold font-mono ${t.type === 'RECEITA' ? 'text-emerald-400' : 'text-white'}`}>
-                        {t.type === 'RECEITA' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR')}
+                        {t.type === 'RECEITA' ? '+' : '-'} R$ {(t.amount ?? 0).toLocaleString('pt-BR')}
                       </p>
                       <p className="text-[9px] text-slate-500 font-mono">Ver detalhes</p>
                     </div>
@@ -337,7 +337,7 @@ export function SearchScreens({
 
                     <div className="text-right">
                       <p className={`text-xs font-bold font-mono ${t.type === 'RECEITA' ? 'text-emerald-400' : 'text-white'}`}>
-                        {t.type === 'RECEITA' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR')}
+                        {t.type === 'RECEITA' ? '+' : '-'} R$ {(t.amount ?? 0).toLocaleString('pt-BR')}
                       </p>
                       <p className="text-[9px] text-slate-500 font-mono">Ver detalhes</p>
                     </div>

@@ -186,7 +186,7 @@ export function AnalysisScreens({
             <div>
               <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Patrimônio Investido</p>
               <h2 className="text-3xl font-black text-purple-400 font-display mt-1">
-                R$ {totalPortfolioValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {(totalPortfolioValue ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h2>
               <p className="text-[10px] text-slate-500 font-mono mt-1">Sincronizado via Financial Engine</p>
             </div>
@@ -219,7 +219,7 @@ export function AnalysisScreens({
                     </div>
 
                     <div className="text-right">
-                      <p className="text-xs font-bold text-white">R$ {inv.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs font-bold text-white">R$ {(inv.currentAmount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                       <span className="text-[9px] bg-purple-950/40 text-purple-400 border border-purple-900/40 px-1.5 py-0.5 rounded font-mono font-bold inline-block mt-0.5">
                         {inv.yieldRate || '100% CDI'}
                       </span>
@@ -281,19 +281,19 @@ export function AnalysisScreens({
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400">Total Investido do Bolso</p>
                   <p className="text-sm font-bold text-slate-200 font-mono">
-                    R$ {simulationResults.totalInvested.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                    R$ {(simulationResults?.totalInvested ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400">Total Ganho em Juros</p>
                   <p className="text-sm font-bold text-teal-400 font-mono">
-                    R$ {simulationResults.totalInterest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                    R$ {(simulationResults?.totalInterest ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="space-y-1 border-t sm:border-t-0 sm:border-l border-purple-900/40 pt-2 sm:pt-0">
                   <p className="text-[10px] text-purple-300 font-bold">Total Acumulado Final</p>
                   <p className="text-base font-black text-purple-400 font-mono font-display">
-                    R$ {simulationResults.finalAmount.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                    R$ {(simulationResults?.finalAmount ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
@@ -390,7 +390,7 @@ export function AnalysisScreens({
           <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-right">
             <span className="text-[9px] text-slate-500 uppercase font-mono block">Saldo Projetado Final</span>
             <span className="text-sm font-black text-teal-400 font-mono">
-              R$ {finalProjectedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(finalProjectedBalance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -462,7 +462,7 @@ export function AnalysisScreens({
                           <p className="text-[9px] text-slate-500 uppercase font-mono">{ev.category} • {ev.sourceEntity}</p>
                         </div>
                         <strong className={ev.type === 'RECEITA' ? 'text-emerald-400 font-mono' : 'text-rose-400 font-mono'}>
-                          {ev.type === 'RECEITA' ? '+' : '-'} R$ {ev.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {ev.type === 'RECEITA' ? '+' : '-'} R$ {(ev.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </strong>
                       </div>
                     ))}
@@ -531,9 +531,9 @@ export function AnalysisScreens({
                           <p className={`text-xs font-bold font-mono ${
                             item.type === 'BASE' ? 'text-white' : item.amount > 0 ? 'text-emerald-400' : 'text-rose-400'
                           }`}>
-                            {item.type === 'BASE' ? '' : item.amount > 0 ? '+' : ''}R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {item.type === 'BASE' ? '' : item.amount > 0 ? '+' : ''}R$ {(item.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </p>
-                          <p className="text-[9px] text-slate-500 font-mono mt-0.5">Proj: R$ {item.runningBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                          <p className="text-[9px] text-slate-500 font-mono mt-0.5">Proj: R$ {(item.runningBalance ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                       </div>
                     </div>
@@ -608,15 +608,15 @@ export function AnalysisScreens({
             <h4 className="text-xs text-slate-400 uppercase tracking-wider font-bold">Taxa de Poupança (Mês)</h4>
             <p className="text-2xl font-black font-display text-teal-400">{monthlySummary.savingsRate}%</p>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              Receitas: R$ {monthlySummary.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | 
-              Despesas: R$ {monthlySummary.monthlyExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              Receitas: R$ {(monthlySummary.monthlyIncome ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | 
+              Despesas: R$ {(monthlySummary.monthlyExpense ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xs space-y-2">
             <h4 className="text-xs text-slate-400 uppercase tracking-wider font-bold">Sobras Líquidas</h4>
             <p className="text-2xl font-black font-display text-white">
-              R$ {monthlySummary.economy.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(monthlySummary.economy ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-[10px] text-slate-500 leading-relaxed">Saldo excedente livre no mês pronto para aportes ou reserva.</p>
           </div>
@@ -624,7 +624,7 @@ export function AnalysisScreens({
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xs space-y-2">
             <h4 className="text-xs text-slate-400 uppercase tracking-wider font-bold">Patrimônio Líquido Consol.</h4>
             <p className="text-2xl font-black font-display text-purple-400">
-              R$ {netWorth.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {(netWorth ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-[10px] text-slate-500 leading-relaxed">Considera saldo em contas + investimentos - dívidas de cartões e parcelamentos.</p>
           </div>

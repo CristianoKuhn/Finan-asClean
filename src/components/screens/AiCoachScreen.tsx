@@ -274,15 +274,15 @@ export function AiCoachScreen({
                   <span className="bg-teal-950/40 text-teal-400 border border-teal-900/40 px-2 py-0.5 rounded-full text-[9px] font-bold font-mono">
                     DIAGNÓSTICO EXECUTIVO
                   </span>
-                  <h4 className="text-sm font-bold text-white leading-relaxed">"{report.summary}"</h4>
+                  <h4 className="text-sm font-bold text-white leading-relaxed">"{report?.summary || 'Diagnóstico indisponível'}"</h4>
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="p-2.5 bg-slate-950/40 border border-slate-850 rounded-xl">
                       <p className="text-[8px] text-slate-500 font-mono uppercase">Previsão Próximo Mês</p>
-                      <p className="text-xs font-bold text-teal-400 mt-0.5">R$ {report.forecast.nextMonthBalance.toLocaleString('pt-BR')}</p>
+                      <p className="text-xs font-bold text-teal-400 mt-0.5">R$ {(report?.forecast?.nextMonthBalance ?? 0).toLocaleString('pt-BR')}</p>
                     </div>
                     <div className="p-2.5 bg-slate-950/40 border border-slate-850 rounded-xl">
                       <p className="text-[8px] text-slate-500 font-mono uppercase">Margem Segurança Caixa</p>
-                      <p className="text-xs font-bold text-purple-400 mt-0.5">{report.forecast.safetyMarginMonths} meses de custo</p>
+                      <p className="text-xs font-bold text-purple-400 mt-0.5">{(report?.forecast?.safetyMarginMonths ?? 0)} meses de custo</p>
                     </div>
                   </div>
                 </div>
@@ -295,7 +295,7 @@ export function AiCoachScreen({
                 </h3>
 
                 <div className="space-y-3">
-                  {report.recommendations.map((rec, idx) => (
+                  {(report?.recommendations || []).map((rec, idx) => (
                     <div key={idx} className="p-4 bg-slate-950/40 border border-slate-850 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export function AiCoachScreen({
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {report.alerts.map((alert, idx) => (
+                  {(report?.alerts || []).map((alert, idx) => (
                     <div key={idx} className="p-3 bg-slate-950/30 border border-slate-850 rounded-xl flex gap-2.5 items-start">
                       <div className={`p-1.5 rounded-lg mt-0.5 shrink-0 ${
                         alert.severity === 'HIGH' 

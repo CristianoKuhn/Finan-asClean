@@ -363,8 +363,8 @@ export function PlanningScreens({
 
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="font-bold text-teal-400">R$ {inst.parcelValue.toFixed(2)} / mês</p>
-                              <p className="text-[9px] text-slate-500 font-mono">Total: R$ {inst.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                              <p className="font-bold text-teal-400">R$ {inst.parcelValue ? inst.parcelValue.toFixed(2) : '0.00'} / mês</p>
+                              <p className="text-[9px] text-slate-500 font-mono">Total: R$ {(inst.totalAmount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </div>
 
                             <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-lg">
@@ -403,7 +403,7 @@ export function PlanningScreens({
 
                         <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
                           <span>Parcela: {inst.currentParcel} de {inst.totalParcels} ({progress}%)</span>
-                          <span>Saldo devedor restante: <strong className="text-slate-300">R$ {remaining.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                          <span>Saldo devedor restante: <strong className="text-slate-300">R$ {(remaining ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
                     );
@@ -665,8 +665,8 @@ export function PlanningScreens({
                       </div>
 
                       <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                        <span>Saldo: R$ {g.currentAmount.toLocaleString('pt-BR')}</span>
-                        <span>Alvo: R$ {g.targetAmount.toLocaleString('pt-BR')}</span>
+                        <span>Saldo: R$ {(g.currentAmount ?? 0).toLocaleString('pt-BR')}</span>
+                        <span>Alvo: R$ {(g.targetAmount ?? 0).toLocaleString('pt-BR')}</span>
                       </div>
                     </div>
 

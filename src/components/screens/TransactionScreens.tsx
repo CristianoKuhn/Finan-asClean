@@ -324,7 +324,7 @@ export function TransactionScreens({
             <div>
               <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Entradas Consolidadas</p>
               <h2 className="text-3xl font-black text-emerald-400 font-display mt-1">
-                R$ {incomeTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                R$ {(incomeTotal ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <p className="text-[10px] text-slate-500 font-mono mt-1">Total acumulado de receitas registradas no Sheets</p>
             </div>
@@ -430,7 +430,7 @@ export function TransactionScreens({
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-xs font-bold text-emerald-400 font-display">
-                        + R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        + R$ {(t.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       <p className="text-[9px] text-slate-500 font-mono">Conta: {accounts.find(a => a.id === t.accountId)?.name || 'Outra'}</p>
                     </div>
@@ -491,7 +491,7 @@ export function TransactionScreens({
             <div>
               <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Despesas Consolidadas</p>
               <h2 className="text-3xl font-black text-rose-500 font-display mt-1">
-                R$ {expenseTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                R$ {(expenseTotal ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <p className="text-[10px] text-slate-500 font-mono mt-1">Total de débitos acumulados e lançados no cartão de crédito</p>
             </div>
@@ -603,7 +603,7 @@ export function TransactionScreens({
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-xs font-bold text-white font-display">
-                        - R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        - R$ {(t.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       <p className="text-[9px] text-slate-500 font-mono">
                         {t.cardId ? cards.find(c => c.id === t.cardId)?.name : accounts.find(a => a.id === t.accountId)?.name}
