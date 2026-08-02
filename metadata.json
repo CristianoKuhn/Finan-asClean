@@ -1,0 +1,6 @@
+{
+  "name": "Finanças Clean",
+  "description": "Plataforma de arquitetura, documentação interativa e simulador de API para o sistema de Gestão Financeira Pessoal Finanças Clean.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
