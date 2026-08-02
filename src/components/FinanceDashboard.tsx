@@ -724,8 +724,19 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     const totalInvestments = investments.reduce((acc, i) => acc + i.currentAmount, 0);
     const patrimonioTotal = totalAccountBalance + totalInvestments;
     
-    // Configurable/Standardized monthly planning limit and targets
-    const budgetLimit = 8500;
+    // Configurable/Standardized monthly planning limit calculated dynamically from Category Limits
+    let dynamicCategoryLimitsSum = 0;
+    try {
+      const cachedLimits = localStorage.getItem('financas_clean_category_limits');
+      if (cachedLimits) {
+        const parsed = JSON.parse(cachedLimits);
+        if (parsed && typeof parsed === 'object') {
+          dynamicCategoryLimitsSum = (Object.values(parsed) as (string|number)[]).reduce<number>((acc, val) => acc + (parseFloat(String(val)) || 0), 0);
+        }
+      }
+    } catch (e) {}
+
+    const budgetLimit = dynamicCategoryLimitsSum > 0 ? dynamicCategoryLimitsSum : 7800;
     const percentualUtilizado = Math.min(100, Math.round((kpis.expense / budgetLimit) * 100));
     const quantoPodeGastar = Math.max(0, budgetLimit - kpis.expense);
     
@@ -875,8 +886,33 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     setAccounts(prev => [...prev, newAcc]);
   };
 
+  const handleUpdateAccount = (id: string, updatedFields: Partial<BankAccount>) => {
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    setAccounts(prev => prev.filter(a => a.id !== id));
+  };
+
   const handleAddCard = (newCard: CreditCard) => {
     setCards(prev => [...prev, newCard]);
+  };
+
+  const handleUpdateCard = (id: string, updatedFields: Partial<CreditCard>) => {
+    setCards(prev => prev.map(c => {
+      if (c.id === id) {
+        const updated = { ...c, ...updatedFields };
+        return {
+          ...updated,
+          availableLimit: updated.limit - updated.usedLimit
+        };
+      }
+      return c;
+    }));
+  };
+
+  const handleDeleteCard = (id: string) => {
+    setCards(prev => prev.filter(c => c.id !== id));
   };
 
   const handleUpdateCardLimit = (id: string, limit: number) => {
@@ -1552,7 +1588,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
                       R$ {cockpitStats.quantoPodeGastar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[9px] text-slate-400 inline-block mt-1">
-                      Limite Planejado: R$ 8.500
+                      Limite Planejado: R$ {cockpitStats.budgetLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
 
@@ -2177,7 +2213,11 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
               cards={cards}
               transactions={transactions}
               onAddAccount={handleAddAccount}
+              onUpdateAccount={handleUpdateAccount}
+              onDeleteAccount={handleDeleteAccount}
               onAddCard={handleAddCard}
+              onUpdateCard={handleUpdateCard}
+              onDeleteCard={handleDeleteCard}
               onUpdateCardLimit={handleUpdateCardLimit}
             />
           )}
