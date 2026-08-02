@@ -437,7 +437,12 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     setSheetsError(null);
     try {
       const response = await fetch(`${urlToUse}?action=obter_dados_completos&usuario_id=usr_f89b1c72`);
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Planilha ou Web App do Google Sheets não encontrado (HTTP 404). Configure seu Web App em Backups & GSheets.');
+        }
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
       const result = await response.json();
       if (result.success && result.data) {
         const d = result.data;
@@ -580,16 +585,17 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
         throw new Error(result.error || 'Erro no processamento do Apps Script');
       }
     } catch (err: any) {
-      console.error("Sheets sync error:", err);
-      setSheetsError(err.message || String(err));
+      const errorMsg = err?.message || String(err);
+      console.warn("Sheets sync notice:", errorMsg);
+      setSheetsError(errorMsg);
       if (onLogApiCall) {
         onLogApiCall({
           endpoint: '/obter_dados_completos',
           method: 'GET',
-          response: JSON.stringify({ success: false, error: err.message || String(err) }, null, 2),
+          response: JSON.stringify({ success: false, error: errorMsg }, null, 2),
           technicalSteps: [
             `[Real Integration] Tentativa de sincronização com o Sheets falhou.`,
-            `[Fallback] Usando cache local e dados mockados para garantir o funcionamento do app offline.`
+            `[Fallback] Usando cache e dados locais para garantir o funcionamento do app offline.`
           ]
         });
       }
@@ -2230,6 +2236,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
               goals={goals}
               subscriptions={subscriptions}
               transactions={transactions}
+              cards={cards}
               onAddGoal={handleAddGoal}
               onAddSubscription={handleAddSubscription}
               onDepositToGoal={handleDepositToGoal}

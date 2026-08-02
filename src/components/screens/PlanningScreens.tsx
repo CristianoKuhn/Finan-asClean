@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Calendar, 
   Plus, 
@@ -11,6 +11,7 @@ import {
   Sliders, 
   CheckCircle, 
   Trash2, 
+  Edit2,
   ChevronRight, 
   TrendingUp, 
   Clock, 
@@ -25,7 +26,17 @@ import {
   Award,
   X
 } from 'lucide-react';
-import { FinancialGoal, Subscription, Transaction } from '../../types';
+import { FinancialGoal, Subscription, Transaction, CreditCard } from '../../types';
+
+interface InstallmentContract {
+  id: string;
+  item: string;
+  totalAmount: number;
+  parcelValue: number;
+  currentParcel: number;
+  totalParcels: number;
+  cardName: string;
+}
 
 interface PlanningScreensProps {
   currentScreen: 'parcelamentos' | 'assinaturas' | 'metas';
@@ -33,6 +44,7 @@ interface PlanningScreensProps {
   goals: FinancialGoal[];
   subscriptions: Subscription[];
   transactions: Transaction[];
+  cards?: CreditCard[];
   onAddGoal: (goal: FinancialGoal) => void;
   onAddSubscription: (sub: Subscription) => void;
   onDepositToGoal: (id: string, amount: number) => void;
@@ -44,6 +56,7 @@ export function PlanningScreens({
   goals,
   subscriptions,
   transactions,
+  cards = [],
   onAddGoal,
   onAddSubscription,
   onDepositToGoal
@@ -65,15 +78,36 @@ export function PlanningScreens({
   const [depositGoalId, setDepositGoalId] = useState<string>('');
   const [depositValue, setDepositValue] = useState<string>('');
 
-  // Local simulated installments (Parcelamentos)
-  const [installments, setInstallments] = useState([
-    { id: 'ins_01', item: 'Notebook Dell XPS', totalAmount: 8500.00, parcelValue: 850.00, currentParcel: 4, totalParcels: 10, cardName: 'Nubank Ultravioleta' },
-    { id: 'ins_02', item: 'Smartphone iPhone 16 Pro', totalAmount: 7200.00, parcelValue: 600.00, currentParcel: 8, totalParcels: 12, cardName: 'Inter Black' },
-    { id: 'ins_03', item: 'Sofá Retrátil Sala', totalAmount: 2400.00, parcelValue: 400.00, currentParcel: 2, totalParcels: 6, cardName: 'Nubank Ultravioleta' }
-  ]);
+  // Local persistent installments (Parcelamentos) - default empty, NO sample items
+  const [installments, setInstallments] = useState<InstallmentContract[]>(() => {
+    const cached = localStorage.getItem('financas_pro_installments');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('financas_pro_installments', JSON.stringify(installments));
+  }, [installments]);
+
+  // Form for new installment
   const [instItem, setInstItem] = useState('');
   const [instTotal, setInstTotal] = useState('');
   const [instParcels, setInstParcels] = useState('10');
+  const [instCurrentParcel, setInstCurrentParcel] = useState('1');
+  const [instCardName, setInstCardName] = useState('Nubank Ultravioleta');
+
+  // Inline Editing state for installment
+  const [editingInstId, setEditingInstId] = useState<string | null>(null);
+  const [editInstItem, setEditInstItem] = useState('');
+  const [editInstTotal, setEditInstTotal] = useState('');
+  const [editInstParcels, setEditInstParcels] = useState('10');
+  const [editInstCurrentParcel, setEditInstCurrentParcel] = useState('1');
+  const [editInstCardName, setEditInstCardName] = useState('');
 
   // Monthly Recurring Subscriptions cost
   const subTotalCost = useMemo(() => {
@@ -133,22 +167,53 @@ export function PlanningScreens({
     if (!instItem || !instTotal || !instParcels) return;
 
     const totalVal = parseFloat(instTotal);
-    const parCount = parseInt(instParcels);
+    const parCount = parseInt(instParcels) || 10;
+    const currentPar = parseInt(instCurrentParcel) || 1;
     const splitVal = parseFloat((totalVal / parCount).toFixed(2));
 
-    const newInst = {
+    const newInst: InstallmentContract = {
       id: `ins_${Math.random().toString(36).substring(2, 9)}`,
       item: instItem,
       totalAmount: totalVal,
       parcelValue: splitVal,
-      currentParcel: 1,
+      currentParcel: currentPar,
       totalParcels: parCount,
-      cardName: 'Nubank Ultravioleta'
+      cardName: instCardName || 'Nubank Ultravioleta'
     };
 
     setInstallments(prev => [newInst, ...prev]);
     setInstItem('');
     setInstTotal('');
+    setInstCurrentParcel('1');
+  };
+
+  const handleSaveEditInstallment = (id: string) => {
+    const totalVal = parseFloat(editInstTotal);
+    const parCount = parseInt(editInstParcels) || 1;
+    const currentPar = parseInt(editInstCurrentParcel) || 1;
+    const splitVal = parseFloat((totalVal / parCount).toFixed(2));
+
+    setInstallments(prev => prev.map(inst => {
+      if (inst.id === id) {
+        return {
+          ...inst,
+          item: editInstItem || inst.item,
+          totalAmount: isNaN(totalVal) ? inst.totalAmount : totalVal,
+          totalParcels: parCount,
+          parcelValue: isNaN(splitVal) ? inst.parcelValue : splitVal,
+          currentParcel: currentPar,
+          cardName: editInstCardName || inst.cardName
+        };
+      }
+      return inst;
+    }));
+    setEditingInstId(null);
+  };
+
+  const handleDeleteInstallment = (id: string) => {
+    if (confirm('Deseja realmente excluir este cronograma parcelado?')) {
+      setInstallments(prev => prev.filter(inst => inst.id !== id));
+    }
   };
 
   const handleGoalDepositSubmit = (e: React.FormEvent) => {
@@ -173,41 +238,177 @@ export function PlanningScreens({
           {/* List of active installments */}
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <h3 className="font-bold text-sm text-white font-display">Contratos Parcelados Ativos</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-sm text-white font-display">Contratos Parcelados Ativos</h3>
+                <span className="text-xs text-slate-400 font-mono">
+                  {installments.length} {installments.length === 1 ? 'contrato' : 'contratos'}
+                </span>
+              </div>
               
               <div className="space-y-3">
-                {installments.map(inst => {
-                  const progress = Math.round((inst.currentParcel / inst.totalParcels) * 100);
-                  const remaining = inst.totalAmount - (inst.parcelValue * inst.currentParcel);
-                  return (
-                    <div key={inst.id} className="p-4 bg-slate-950/40 border border-slate-850 rounded-xl space-y-3">
-                      <div className="flex justify-between items-start text-xs">
-                        <div>
-                          <p className="font-bold text-white">{inst.item}</p>
-                          <p className="text-[10px] text-slate-500 font-mono">Cartão: {inst.cardName}</p>
+                {installments.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-950/40 border border-slate-850 rounded-xl space-y-2">
+                    <CardIcon className="w-8 h-8 text-slate-600 mx-auto" />
+                    <p className="text-sm font-bold text-white">Nenhum parcelamento registrado</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Cadastre suas compras parceladas no formulário ao lado para acompanhar o comprometimento do limite dos seus cartões.
+                    </p>
+                  </div>
+                ) : (
+                  installments.map(inst => {
+                    const isEditing = editingInstId === inst.id;
+
+                    if (isEditing) {
+                      return (
+                        <div key={inst.id} className="p-4 bg-slate-950 border border-teal-500/80 rounded-xl space-y-3">
+                          <p className="text-xs font-bold text-teal-400">Editar Compra Parcelada</p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-400">Descrição do Bem</label>
+                              <input
+                                type="text"
+                                className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-white text-xs rounded"
+                                value={editInstItem}
+                                onChange={(e) => setEditInstItem(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-400">Cartão de Crédito</label>
+                              {cards && cards.length > 0 ? (
+                                <select
+                                  className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-white text-xs rounded"
+                                  value={editInstCardName}
+                                  onChange={(e) => setEditInstCardName(e.target.value)}
+                                >
+                                  {cards.map(c => (
+                                    <option key={c.id} value={c.name}>{c.name} ({c.bankName})</option>
+                                  ))}
+                                  <option value="Outro">Outro Cartão</option>
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-white text-xs rounded"
+                                  value={editInstCardName}
+                                  onChange={(e) => setEditInstCardName(e.target.value)}
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-400">Valor Total (R$)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-teal-400 font-bold text-xs rounded"
+                                value={editInstTotal}
+                                onChange={(e) => setEditInstTotal(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-400">Nº Parcelas</label>
+                              <input
+                                type="number"
+                                min="1"
+                                className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-white text-xs rounded"
+                                value={editInstParcels}
+                                onChange={(e) => setEditInstParcels(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-400">Parcela Atual</label>
+                              <input
+                                type="number"
+                                min="1"
+                                className="w-full px-2.5 py-1 bg-slate-900 border border-slate-700 text-white text-xs rounded"
+                                value={editInstCurrentParcel}
+                                onChange={(e) => setEditInstCurrentParcel(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingInstId(null)}
+                              className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded font-medium cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditInstallment(inst.id)}
+                              className="px-3 py-1 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs rounded cursor-pointer"
+                            >
+                              Salvar Alterações
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const progress = Math.min(100, Math.round((inst.currentParcel / inst.totalParcels) * 100));
+                    const remaining = Math.max(0, inst.totalAmount - (inst.parcelValue * inst.currentParcel));
+
+                    return (
+                      <div key={inst.id} className="p-4 bg-slate-950/40 border border-slate-850 hover:border-slate-800 rounded-xl space-y-3 transition-colors">
+                        <div className="flex justify-between items-start text-xs">
+                          <div>
+                            <p className="font-bold text-white text-sm">{inst.item}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">Cartão: {inst.cardName}</p>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="font-bold text-teal-400">R$ {inst.parcelValue.toFixed(2)} / mês</p>
+                              <p className="text-[9px] text-slate-500 font-mono">Total: R$ {inst.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            </div>
+
+                            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+                              <button
+                                onClick={() => {
+                                  setEditingInstId(inst.id);
+                                  setEditInstItem(inst.item);
+                                  setEditInstTotal(inst.totalAmount.toString());
+                                  setEditInstParcels(inst.totalParcels.toString());
+                                  setEditInstCurrentParcel(inst.currentParcel.toString());
+                                  setEditInstCardName(inst.cardName);
+                                }}
+                                className="p-1 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                                title="Editar Compra Parcelada"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInstallment(inst.id)}
+                                className="p-1 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                                title="Excluir Compra"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="text-right">
-                          <p className="font-bold text-teal-400">R$ {inst.parcelValue.toFixed(2)} / mês</p>
-                          <p className="text-[9px] text-slate-500 font-mono">Total: R$ {inst.totalAmount.toLocaleString('pt-BR')}</p>
+                        {/* Progress bar */}
+                        <div className="w-full bg-slate-850 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-teal-500 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                          <span>Parcela: {inst.currentParcel} de {inst.totalParcels} ({progress}%)</span>
+                          <span>Saldo devedor restante: <strong className="text-slate-300">R$ {remaining.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
-
-                      {/* Progress bar */}
-                      <div className="w-full bg-slate-850 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-teal-500 h-full rounded-full"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-
-                      <div className="flex justify-between text-[10px] text-slate-500">
-                        <span>Parcela: {inst.currentParcel} de {inst.totalParcels} ({progress}%)</span>
-                        <span>Saldo devedor restante: <strong>R$ {Math.max(remaining, 0).toLocaleString('pt-BR')}</strong></span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -225,8 +426,31 @@ export function PlanningScreens({
                   placeholder="Ex: Monitor UltraWide LG"
                   value={instItem}
                   onChange={(e) => setInstItem(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none focus:border-teal-500"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400">Cartão de Crédito</label>
+                {cards && cards.length > 0 ? (
+                  <select
+                    value={instCardName}
+                    onChange={(e) => setInstCardName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none"
+                  >
+                    {cards.map(c => (
+                      <option key={c.id} value={c.name}>{c.name} ({c.bankName})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Ex: Nubank Ultravioleta, Inter"
+                    value={instCardName}
+                    onChange={(e) => setInstCardName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -250,18 +474,33 @@ export function PlanningScreens({
                     onChange={(e) => setInstParcels(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none"
                   >
+                    <option value="2">2x</option>
                     <option value="3">3x</option>
+                    <option value="4">4x</option>
+                    <option value="5">5x</option>
                     <option value="6">6x</option>
                     <option value="10">10x</option>
                     <option value="12">12x</option>
+                    <option value="18">18x</option>
                     <option value="24">24x</option>
                   </select>
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400">Parcela Atual Paga</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={instCurrentParcel}
+                  onChange={(e) => setInstCurrentParcel(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white font-mono rounded-lg text-xs focus:outline-none"
+                />
+              </div>
+
               <button
                 type="submit"
-                className="w-full py-2 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold rounded-lg text-xs cursor-pointer transition-colors text-center"
+                className="w-full py-2 bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold rounded-lg text-xs cursor-pointer transition-colors text-center shadow-sm"
               >
                 Cadastrar Parcelas
               </button>
