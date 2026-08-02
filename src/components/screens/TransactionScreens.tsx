@@ -29,9 +29,55 @@ import {
   Clock,
   MapPin,
   User as UserIcon,
-  ArrowLeftRight
+  ArrowLeftRight,
+  CheckCircle2,
+  CheckCircle
 } from 'lucide-react';
-import { Transaction, BankAccount, CreditCard } from '../../types';
+import { Transaction, BankAccount, CreditCard, FinancialStatus } from '../../types';
+import { FinancialEngine } from '../../services/financialEngine';
+
+export function StatusBadge({ status }: { status: FinancialStatus | string }) {
+  switch (status) {
+    case 'PAGA':
+    case 'PAGO':
+      return (
+        <span className="text-[9px] font-mono font-bold bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 px-2 py-0.5 rounded-md flex items-center gap-1">
+          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" /> Paga
+        </span>
+      );
+    case 'VENCE_HOJE':
+      return (
+        <span className="text-[9px] font-mono font-bold bg-amber-950/60 border border-amber-800/60 text-amber-400 px-2 py-0.5 rounded-md flex items-center gap-1">
+          <Clock className="w-2.5 h-2.5 text-amber-400" /> Vence Hoje
+        </span>
+      );
+    case 'ATRASADA':
+      return (
+        <span className="text-[9px] font-mono font-bold bg-rose-950/60 border border-rose-800/60 text-rose-400 px-2 py-0.5 rounded-md flex items-center gap-1">
+          <AlertCircle className="w-2.5 h-2.5 text-rose-400" /> Atrasada
+        </span>
+      );
+    case 'CANCELADA':
+      return (
+        <span className="text-[9px] font-mono font-bold bg-slate-900 border border-slate-800 text-slate-500 px-2 py-0.5 rounded-md">
+          Cancelada
+        </span>
+      );
+    case 'A_VENCER':
+      return (
+        <span className="text-[9px] font-mono font-bold bg-teal-950/60 border border-teal-800/60 text-teal-400 px-2 py-0.5 rounded-md">
+          A Vencer
+        </span>
+      );
+    case 'PREVISTA':
+    default:
+      return (
+        <span className="text-[9px] font-mono font-bold bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded-md">
+          Prevista
+        </span>
+      );
+  }
+}
 
 // Helper to calculate date by adding months to an existing YYYY-MM-DD string
 function addMonthsToDate(dateStr: string, monthsToAdd: number): string {
@@ -73,6 +119,7 @@ interface TransactionScreensProps {
   onAddTransaction: (txn: Transaction) => void;
   onEditTransaction: (txn: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
+  onPayTransaction?: (id: string) => void;
   editingTransactionId?: string;
   setEditingTransactionId: (id: string | undefined) => void;
 }
@@ -86,6 +133,7 @@ export function TransactionScreens({
   onAddTransaction,
   onEditTransaction,
   onDeleteTransaction,
+  onPayTransaction,
   editingTransactionId,
   setEditingTransactionId
 }: TransactionScreensProps) {
@@ -114,6 +162,7 @@ export function TransactionScreens({
   const [isFavorite, setIsFavorite] = useState(false);
   const [recurrent, setRecurrent] = useState(false);
   const [recurrentMonths, setRecurrentMonths] = useState('20');
+  const [isPaidImmediately, setIsPaidImmediately] = useState(false);
 
   // Load transaction on editing screen
   const editingTxn = useMemo(() => {
@@ -137,6 +186,7 @@ export function TransactionScreens({
         setRelatedPerson(found.relatedPerson || '');
         setIsFavorite(found.isFavorite || false);
         setRecurrent(found.recurrent || false);
+        setIsPaidImmediately(found.status === 'PAGA' || found.status === 'PAGO');
       }
       return found;
     }
@@ -209,63 +259,52 @@ export function TransactionScreens({
         const totalInstallments = recurrent ? (parseInt(recurrentMonths, 10) || 1) : 1;
 
         if (totalInstallments > 1) {
-          // Add transactions for the next N months
-          for (let i = 0; i < totalInstallments; i++) {
-            const installmentDate = addMonthsToDate(date, i);
-            const installmentDesc = `${description} (${i + 1}/${totalInstallments})`;
-            const instNotes = notes 
-              ? `${notes} - Parcela ${i + 1} de ${totalInstallments}` 
-              : `Lançamento recorrente de parcelas - ${i + 1} de ${totalInstallments}`;
-
-            const newTxn: Transaction = {
-              id: `txn_rec_${Math.random().toString(36).substring(2, 9)}_${i}`,
-              description: installmentDesc,
-              amount: valNumeric,
-              type: type,
-              category,
-              subcategory: subcategory || 'Geral',
-              accountId: paymentMethod === 'CREDITO' ? '' : accountId,
-              cardId: paymentMethod === 'CREDITO' ? cardId : undefined,
-              paymentMethod,
-              date: installmentDate,
-              time: time || '12:00',
-              notes: instNotes,
-              attachmentName,
-              status: 'PAGO',
-              tags: parsedTags,
-              location: location || undefined,
-              relatedPerson: relatedPerson || undefined,
-              isFavorite,
-              recurrent: true
-            };
-            onAddTransaction(newTxn);
-          }
-        } else {
-          // Standard single transaction
-          const newTxn: Transaction = {
-            id: `txn_${Math.random().toString(36).substring(2, 9)}`,
+          const generated = FinancialEngine.createRecurringExpense({
             description,
             amount: valNumeric,
-            type: type,
+            type,
             category,
-            subcategory: subcategory || 'Geral',
+            subcategory,
+            accountId: paymentMethod === 'CREDITO' ? '' : accountId,
+            cardId: paymentMethod === 'CREDITO' ? cardId : undefined,
+            paymentMethod,
+            startDate: date,
+            months: totalInstallments,
+            time,
+            notes,
+            isPaidImmediatelyFirst: isPaidImmediately,
+            tags: parsedTags,
+            location,
+            relatedPerson,
+            isFavorite,
+            todayStr: '2026-08-02'
+          });
+          generated.forEach(txn => onAddTransaction(txn));
+        } else {
+          const { transaction } = FinancialEngine.createExpense({
+            description,
+            amount: valNumeric,
+            type,
+            category,
+            subcategory,
             accountId: paymentMethod === 'CREDITO' ? '' : accountId,
             cardId: paymentMethod === 'CREDITO' ? cardId : undefined,
             paymentMethod,
             date,
-            time: time || '12:00',
-            notes: notes || undefined,
+            time,
+            notes,
             attachmentName,
-            status: 'PAGO',
+            isPaidImmediately,
             tags: parsedTags,
-            location: location || undefined,
-            relatedPerson: relatedPerson || undefined,
+            location,
+            relatedPerson,
             isFavorite,
-            recurrent
-          };
-          onAddTransaction(newTxn);
+            todayStr: '2026-08-02'
+          });
+          onAddTransaction(transaction);
         }
       } else if (currentScreen === 'editar_lancamento' && editingTransactionId) {
+        const calculatedStatus = FinancialEngine.determineStatus(date, isPaidImmediately, false, '2026-08-02');
         const updatedTxn: Transaction = {
           id: editingTransactionId,
           description,
@@ -280,7 +319,9 @@ export function TransactionScreens({
           time: time || '12:00',
           notes: notes || undefined,
           attachmentName,
-          status: 'PAGO',
+          status: calculatedStatus,
+          paidAt: isPaidImmediately ? date : undefined,
+          paidAmount: isPaidImmediately ? valNumeric : undefined,
           tags: parsedTags,
           location: location || undefined,
           relatedPerson: relatedPerson || undefined,
@@ -299,6 +340,7 @@ export function TransactionScreens({
       setRelatedPerson('');
       setIsFavorite(false);
       setRecurrent(false);
+      setIsPaidImmediately(false);
       setRecurrentMonths('20');
       setAttachmentName(undefined);
       setIsSubmitting(false);
@@ -428,14 +470,23 @@ export function TransactionScreens({
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-0.5">
                       <p className="text-xs font-bold text-emerald-400 font-display">
                         + R$ {(t.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="text-[9px] text-slate-500 font-mono">Conta: {accounts.find(a => a.id === t.accountId)?.name || 'Outra'}</p>
+                      <StatusBadge status={t.status || 'PREVISTA'} />
                     </div>
 
                     <div className="flex items-center gap-1">
+                      {onPayTransaction && t.status !== 'PAGA' && t.status !== 'PAGO' && t.status !== 'CANCELADA' && (
+                        <button
+                          onClick={() => onPayTransaction(t.id)}
+                          className="px-2 py-1 bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                          title="Registrar liquidação"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> Baixar
+                        </button>
+                      )}
                       <button
                         onClick={() => handleToggleFavorite(t)}
                         className={`p-1 hover:bg-slate-800 rounded transition-colors ${t.isFavorite ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400'}`}
@@ -601,16 +652,23 @@ export function TransactionScreens({
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-0.5">
                       <p className="text-xs font-bold text-white font-display">
                         - R$ {(t.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="text-[9px] text-slate-500 font-mono">
-                        {t.cardId ? cards.find(c => c.id === t.cardId)?.name : accounts.find(a => a.id === t.accountId)?.name}
-                      </p>
+                      <StatusBadge status={t.status || 'PREVISTA'} />
                     </div>
 
                     <div className="flex items-center gap-1">
+                      {onPayTransaction && t.status !== 'PAGA' && t.status !== 'PAGO' && t.status !== 'CANCELADA' && (
+                        <button
+                          onClick={() => onPayTransaction(t.id)}
+                          className="px-2 py-1 bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                          title="Registrar pagamento"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> Pagar
+                        </button>
+                      )}
                       <button
                         onClick={() => handleToggleFavorite(t)}
                         className={`p-1 hover:bg-slate-800 rounded transition-colors ${t.isFavorite ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400'}`}
@@ -985,6 +1043,25 @@ export function TransactionScreens({
               rows={2}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-800 text-white rounded-lg text-xs focus:outline-none focus:border-teal-500 font-sans"
             ></textarea>
+          </div>
+
+          {/* Payment Status Checkbox */}
+          <div className="flex items-center justify-between p-3.5 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-1.5 rounded-lg border ${isPaidImmediately ? 'bg-emerald-950 border-emerald-800 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Registrar como pago imediatamente</p>
+                <p className="text-[10px] text-slate-400">Se desmarcado, o lançamento nascerá como PREVISTO para a data informada</p>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={isPaidImmediately}
+              onChange={(e) => setIsPaidImmediately(e.target.checked)}
+              className="w-4 h-4 accent-emerald-500 cursor-pointer"
+            />
           </div>
 
           {/* Favorites & Recurrency inline row */}

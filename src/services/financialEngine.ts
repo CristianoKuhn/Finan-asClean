@@ -11,7 +11,9 @@ import {
   Subscription, 
   Investment, 
   InstallmentContract, 
-  InstallmentParcel 
+  InstallmentParcel,
+  FinancialStatus,
+  FinancialObligation
 } from '../types';
 
 export interface CalendarEventItem {
@@ -19,7 +21,7 @@ export interface CalendarEventItem {
   title: string;
   amount: number;
   type: 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA' | 'INVESTIMENTO';
-  status: 'PAGO' | 'PENDENTE' | 'ATRASADA' | 'A_VENCER';
+  status: FinancialStatus;
   category: string;
   sourceEntity: 'TRANSACTION' | 'INSTALLMENT' | 'SUBSCRIPTION' | 'CARD_INVOICE' | 'GOAL';
   date: string;
@@ -84,14 +86,289 @@ export interface UpcomingBillItem {
   date: string;
   type: 'RECEITA' | 'DESPESA';
   category: string;
-  status: 'PREVISTA' | 'A_VENCER' | 'VENCE_HOJE' | 'ATRASADA' | 'PAGA' | 'CANCELADA';
+  status: FinancialStatus;
   source: string;
+}
+
+// Helper to calculate date by adding N months
+export function addMonthsToDate(dateStr: string, monthsToAdd: number): string {
+  const parts = dateStr.split('-');
+  let year = parseInt(parts[0], 10) || 2026;
+  let month = parseInt(parts[1], 10) || 8;
+  const day = parseInt(parts[2], 10) || 1;
+  
+  month += monthsToAdd;
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+  
+  const yearStr = year.toString();
+  const monthStr = month < 10 ? `0${month}` : month.toString();
+  
+  let targetDay = day;
+  const maxDaysInMonth = new Date(year, month, 0).getDate();
+  if (targetDay > maxDaysInMonth) {
+    targetDay = maxDaysInMonth;
+  }
+  const dayStr = targetDay < 10 ? `0${targetDay}` : targetDay.toString();
+  
+  return `${yearStr}-${monthStr}-${dayStr}`;
 }
 
 export class FinancialEngine {
 
   /**
-   * 1. Calculate Current Liquid Balance across all Bank Accounts
+   * 0. Lifecycle Status Resolver:
+   * Maps an obligation/occurrence date and payment condition to its exact domain state:
+   * PREVISTA -> A_VENCER -> VENCE_HOJE -> PAGA -> ATRASADA -> CANCELADA
+   */
+  static determineStatus(
+    dueDateStr: string,
+    isPaid: boolean,
+    isCancelled: boolean = false,
+    todayStr: string = '2026-08-02'
+  ): FinancialStatus {
+    if (isCancelled) return 'CANCELADA';
+    if (isPaid) return 'PAGA';
+
+    if (dueDateStr < todayStr) return 'ATRASADA';
+    if (dueDateStr === todayStr) return 'VENCE_HOJE';
+    return 'PREVISTA';
+  }
+
+  /**
+   * 1. Create Single Expense / Income Transaction with strict lifecycle evaluation
+   */
+  static createExpense(params: {
+    description: string;
+    amount: number;
+    type: 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA' | 'INVESTIMENTO';
+    category: string;
+    subcategory?: string;
+    accountId?: string;
+    cardId?: string;
+    paymentMethod: 'PIX' | 'DINHEIRO' | 'DEBITO' | 'CREDITO' | 'BOLETO' | 'TED';
+    date: string;
+    time?: string;
+    notes?: string;
+    attachmentName?: string;
+    isPaidImmediately: boolean;
+    tags?: string[];
+    location?: string;
+    relatedPerson?: string;
+    isFavorite?: boolean;
+    todayStr?: string;
+  }): { transaction: Transaction; updatedAccount?: BankAccount } {
+    const today = params.todayStr || '2026-08-02';
+    const status = this.determineStatus(params.date, params.isPaidImmediately, false, today);
+
+    const transaction: Transaction = {
+      id: `txn_${Math.random().toString(36).substring(2, 9)}`,
+      description: params.description,
+      amount: params.amount,
+      type: params.type,
+      category: params.category,
+      subcategory: params.subcategory || 'Geral',
+      accountId: params.paymentMethod === 'CREDITO' ? '' : (params.accountId || ''),
+      cardId: params.paymentMethod === 'CREDITO' ? params.cardId : undefined,
+      paymentMethod: params.paymentMethod,
+      date: params.date,
+      time: params.time || '12:00',
+      notes: params.notes,
+      attachmentName: params.attachmentName,
+      status,
+      paidAt: params.isPaidImmediately ? params.date : undefined,
+      paidAmount: params.isPaidImmediately ? params.amount : undefined,
+      tags: params.tags,
+      location: params.location,
+      relatedPerson: params.relatedPerson,
+      isFavorite: params.isFavorite || false,
+      recurrent: false
+    };
+
+    return { transaction };
+  }
+
+  /**
+   * 2. Create Recurring Expense (Motor de Recorrência)
+   * Generates competence occurrences across months.
+   * Month 1 is marked as PAGA ONLY if isPaidImmediatelyFirst is true.
+   * Future months (2..N) ALWAYS start as PREVISTA / calculated status.
+   */
+  static createRecurringExpense(params: {
+    description: string;
+    amount: number;
+    type: 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA' | 'INVESTIMENTO';
+    category: string;
+    subcategory?: string;
+    accountId?: string;
+    cardId?: string;
+    paymentMethod: 'PIX' | 'DINHEIRO' | 'DEBITO' | 'CREDITO' | 'BOLETO' | 'TED';
+    startDate: string;
+    months: number;
+    time?: string;
+    notes?: string;
+    isPaidImmediatelyFirst: boolean;
+    tags?: string[];
+    location?: string;
+    relatedPerson?: string;
+    isFavorite?: boolean;
+    todayStr?: string;
+  }): Transaction[] {
+    const today = params.todayStr || '2026-08-02';
+    const totalMonths = Math.max(1, params.months);
+    const obligationId = `oblig_${Math.random().toString(36).substring(2, 9)}`;
+    const result: Transaction[] = [];
+
+    for (let i = 0; i < totalMonths; i++) {
+      const occurrenceDate = addMonthsToDate(params.startDate, i);
+      const isFirst = i === 0;
+      const isPaid = isFirst ? params.isPaidImmediatelyFirst : false;
+      const status = this.determineStatus(occurrenceDate, isPaid, false, today);
+
+      const occurrenceDesc = `${params.description} (${i + 1}/${totalMonths})`;
+      const occurrenceNotes = params.notes
+        ? `${params.notes} - Competência ${i + 1}/${totalMonths}`
+        : `Recorrência mensal - Competência ${i + 1}/${totalMonths}`;
+
+      result.push({
+        id: `txn_rec_${Math.random().toString(36).substring(2, 9)}_${i}`,
+        obligationId,
+        description: occurrenceDesc,
+        amount: params.amount,
+        type: params.type,
+        category: params.category,
+        subcategory: params.subcategory || 'Geral',
+        accountId: params.paymentMethod === 'CREDITO' ? '' : (params.accountId || ''),
+        cardId: params.paymentMethod === 'CREDITO' ? params.cardId : undefined,
+        paymentMethod: params.paymentMethod,
+        date: occurrenceDate,
+        time: params.time || '12:00',
+        notes: occurrenceNotes,
+        status,
+        paidAt: isPaid ? occurrenceDate : undefined,
+        paidAmount: isPaid ? params.amount : undefined,
+        installmentNumber: i + 1,
+        totalInstallments: totalMonths,
+        tags: params.tags,
+        location: params.location,
+        relatedPerson: params.relatedPerson,
+        isFavorite: params.isFavorite || false,
+        recurrent: true
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * 3. Create Installment Contract & Explicit Parcels (Motor de Parcelamento)
+   * Each parcel is a distinct entity with its own competence, status, due date, payment, value.
+   */
+  static createInstallmentContract(params: {
+    item: string;
+    totalAmount: number;
+    totalParcels: number;
+    cardName?: string;
+    cardId?: string;
+    accountId?: string;
+    category?: string;
+    startDate?: string;
+    todayStr?: string;
+  }): { contract: InstallmentContract; parcels: InstallmentParcel[] } {
+    const today = params.todayStr || '2026-08-02';
+    const totalParcels = Math.max(1, params.totalParcels);
+    const parcelValue = parseFloat((params.totalAmount / totalParcels).toFixed(2));
+    const contractId = `ins_${Math.random().toString(36).substring(2, 9)}`;
+    const baseDate = params.startDate || today;
+
+    const contract: InstallmentContract = {
+      id: contractId,
+      item: params.item,
+      totalAmount: params.totalAmount,
+      parcelValue,
+      currentParcel: 1,
+      totalParcels,
+      cardName: params.cardName || 'Cartão de Crédito',
+      startDate: baseDate,
+      accountId: params.accountId,
+      cardId: params.cardId,
+      category: params.category || 'Parcelamentos'
+    };
+
+    const parcels: InstallmentParcel[] = [];
+    for (let p = 1; p <= totalParcels; p++) {
+      const dueDate = addMonthsToDate(baseDate, p - 1);
+      const isPaid = false; // Parcela nasce prevista / a vencer
+      const status = this.determineStatus(dueDate, isPaid, false, today);
+
+      parcels.push({
+        id: `${contractId}_p${p}`,
+        contractId,
+        item: params.item,
+        parcelNumber: p,
+        totalParcels,
+        parcelValue,
+        dueDate,
+        status,
+        cardName: params.cardName || 'Cartão de Crédito'
+      });
+    }
+
+    return { contract, parcels };
+  }
+
+  /**
+   * 4. Pay / Settle a Transaction or Occurrence (Registrar Liquidação)
+   */
+  static payExpense(
+    transaction: Transaction,
+    paymentDate: string = '2026-08-02',
+    accountId?: string,
+    accounts: BankAccount[] = []
+  ): { updatedTransaction: Transaction; updatedAccounts: BankAccount[] } {
+    const updatedTransaction: Transaction = {
+      ...transaction,
+      status: 'PAGA',
+      paidAt: paymentDate,
+      paidAmount: transaction.amount,
+      accountId: accountId || transaction.accountId
+    };
+
+    const targetAccId = accountId || transaction.accountId;
+    const updatedAccounts = accounts.map(acc => {
+      if (acc.id === targetAccId) {
+        let newBalance = acc.balance;
+        if (transaction.type === 'RECEITA') {
+          newBalance += transaction.amount;
+        } else if (transaction.type === 'DESPESA') {
+          newBalance -= transaction.amount;
+        }
+        return { ...acc, balance: Math.max(0, parseFloat(newBalance.toFixed(2))) };
+      }
+      return acc;
+    });
+
+    return { updatedTransaction, updatedAccounts };
+  }
+
+  /**
+   * 5. Cancel Expense / Transaction
+   */
+  static cancelExpense(transaction: Transaction): Transaction {
+    return {
+      ...transaction,
+      status: 'CANCELADA'
+    };
+  }
+
+  /**
+   * 6. Calculate Current Liquid Balance across all Bank Accounts
    */
   static calculateCurrentBalance(accounts: BankAccount[]): number {
     if (!accounts || accounts.length === 0) return 0;
@@ -99,7 +376,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 2. Calculate Total Investments Current Value
+   * 7. Calculate Total Investments Current Value
    */
   static calculateTotalInvestments(investments: Investment[]): number {
     if (!investments || investments.length === 0) return 0;
@@ -107,7 +384,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 3. Calculate Total Credit Card & Installment Debt
+   * 8. Calculate Total Credit Card & Installment Debt
    */
   static calculateTotalCardDebt(
     cards: CreditCard[], 
@@ -116,10 +393,10 @@ export class FinancialEngine {
   ): number {
     let total = 0;
 
-    // Card pending transactions
+    // Card unpaid transactions
     if (transactions) {
       transactions.forEach(t => {
-        if (t.cardId && t.type === 'DESPESA' && t.status !== 'PAGO') {
+        if (t.cardId && t.type === 'DESPESA' && t.status !== 'PAGA' && t.status !== 'PAGO' && t.status !== 'CANCELADA') {
           total += t.amount;
         }
       });
@@ -137,8 +414,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 4. Calculate Net Worth (Patrimônio Líquido)
-   * Net Worth = Accounts Balance + Investments - Card Debt
+   * 9. Calculate Net Worth (Patrimônio Líquido)
    */
   static calculateNetWorth(
     accounts: BankAccount[], 
@@ -154,26 +430,18 @@ export class FinancialEngine {
   }
 
   /**
-   * 5. Expand Installment Contracts into explicit Monthly Parcels
+   * 10. Expand Installment Contracts into explicit Monthly Parcels
    */
-  static expandInstallments(installments: InstallmentContract[]): InstallmentParcel[] {
+  static expandInstallments(installments: InstallmentContract[], todayStr: string = '2026-08-02'): InstallmentParcel[] {
     const result: InstallmentParcel[] = [];
     if (!installments || installments.length === 0) return result;
 
-    const baseYear = 2026;
-    const baseMonth = 8; // August 2026
-
     installments.forEach(inst => {
+      const baseDate = inst.startDate || '2026-08-10';
       for (let p = 1; p <= inst.totalParcels; p++) {
-        // Calculate due date per parcel
-        const offsetMonths = p - 1;
-        const totalMonths = (baseMonth - 1) + offsetMonths;
-        const targetYear = baseYear + Math.floor(totalMonths / 12);
-        const targetMonth = (totalMonths % 12) + 1;
-        const monthStr = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
-        const dueDate = `${targetYear}-${monthStr}-10`;
-
+        const dueDate = addMonthsToDate(baseDate, p - 1);
         const isPaid = p <= inst.currentParcel;
+        const status = this.determineStatus(dueDate, isPaid, false, todayStr);
 
         result.push({
           id: `${inst.id}_p${p}`,
@@ -183,7 +451,7 @@ export class FinancialEngine {
           totalParcels: inst.totalParcels,
           parcelValue: inst.parcelValue,
           dueDate,
-          status: isPaid ? 'PAGO' : 'PENDENTE',
+          status,
           cardName: inst.cardName || 'Cartão de Crédito'
         });
       }
@@ -193,7 +461,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 6. Calculate Monthly Summary (KPIs, Expenses by Category, Budget Limits)
+   * 11. Calculate Monthly Summary (KPIs, Expenses by Category, Budget Limits)
    */
   static calculateMonthlySummary(
     activeMonth: string,
@@ -210,8 +478,8 @@ export class FinancialEngine {
     let monthlyInvested = 0;
     const catMap: Record<string, number> = {};
 
-    // 1. Direct transactions in activeMonth
-    const monthTxns = (transactions || []).filter(t => t.date && t.date.startsWith(activeMonth));
+    // 1. Direct transactions in activeMonth (excluding CANCELADA)
+    const monthTxns = (transactions || []).filter(t => t.date && t.date.startsWith(activeMonth) && t.status !== 'CANCELADA');
     monthTxns.forEach(t => {
       if (t.type === 'RECEITA') {
         monthlyIncome += t.amount;
@@ -233,7 +501,7 @@ export class FinancialEngine {
 
     // 3. Add installment parcels due in activeMonth
     const expandedParcels = this.expandInstallments(installments);
-    expandedParcels.filter(p => p.dueDate.startsWith(activeMonth)).forEach(p => {
+    expandedParcels.filter(p => p.dueDate.startsWith(activeMonth) && p.status !== 'CANCELADA').forEach(p => {
       monthlyExpense += p.parcelValue;
       catMap['Parcelamentos'] = (catMap['Parcelamentos'] || 0) + p.parcelValue;
     });
@@ -268,7 +536,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 7. Calculate Upcoming Bills & Due Dates with strict statuses
+   * 12. Calculate Upcoming Bills & Due Dates with strict lifecycle statuses
    */
   static calculateUpcomingBills(
     todayDateStr: string = '2026-08-02',
@@ -278,11 +546,9 @@ export class FinancialEngine {
   ) {
     const list: UpcomingBillItem[] = [];
 
-    // 1. Pending Transactions
-    (transactions || []).filter(t => t.status === 'PENDENTE').forEach(t => {
-      let status: UpcomingBillItem['status'] = 'A_VENCER';
-      if (t.date < todayDateStr) status = 'ATRASADA';
-      else if (t.date === todayDateStr) status = 'VENCE_HOJE';
+    // 1. Unpaid Transactions (excluding PAGA, PAGO, CANCELADA)
+    (transactions || []).filter(t => t.status !== 'PAGA' && t.status !== 'PAGO' && t.status !== 'CANCELADA').forEach(t => {
+      const status = this.determineStatus(t.date, false, false, todayDateStr);
 
       list.push({
         id: t.id,
@@ -300,9 +566,7 @@ export class FinancialEngine {
     (subscriptions || []).filter(s => s.active).forEach(s => {
       const dayStr = s.dueDate < 10 ? `0${s.dueDate}` : `${s.dueDate}`;
       const dueDate = `2026-08-${dayStr}`;
-      let status: UpcomingBillItem['status'] = 'A_VENCER';
-      if (dueDate < todayDateStr) status = 'ATRASADA';
-      else if (dueDate === todayDateStr) status = 'VENCE_HOJE';
+      const status = this.determineStatus(dueDate, false, false, todayDateStr);
 
       list.push({
         id: `sub_bill_${s.id}`,
@@ -316,13 +580,9 @@ export class FinancialEngine {
       });
     });
 
-    // 3. Installments parcels pending
-    const parcels = this.expandInstallments(installments);
-    parcels.filter(p => p.status === 'PENDENTE').forEach(p => {
-      let status: UpcomingBillItem['status'] = 'A_VENCER';
-      if (p.dueDate < todayDateStr) status = 'ATRASADA';
-      else if (p.dueDate === todayDateStr) status = 'VENCE_HOJE';
-
+    // 3. Installments parcels unpaid
+    const parcels = this.expandInstallments(installments, todayDateStr);
+    parcels.filter(p => p.status !== 'PAGA' && p.status !== 'PAGO' && p.status !== 'CANCELADA').forEach(p => {
       list.push({
         id: p.id,
         description: `${p.item} (${p.parcelNumber}/${p.totalParcels}x)`,
@@ -330,7 +590,7 @@ export class FinancialEngine {
         date: p.dueDate,
         type: 'DESPESA',
         category: 'Parcelamento',
-        status,
+        status: p.status,
         source: 'Parcelamento'
       });
     });
@@ -352,7 +612,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 8. Credit Card Invoices Engine
+   * 13. Credit Card Invoices Engine
    */
   static calculateCardInvoices(
     cards: CreditCard[],
@@ -365,7 +625,7 @@ export class FinancialEngine {
     const expandedParcels = this.expandInstallments(installments);
 
     return cards.map(card => {
-      const cardTxns = (transactions || []).filter(t => t.cardId === card.id || t.description.toLowerCase().includes(card.name.toLowerCase()));
+      const cardTxns = (transactions || []).filter(t => t.cardId === card.id || (t.description && t.description.toLowerCase().includes(card.name.toLowerCase())));
       const cardParcels = expandedParcels.filter(p => p.cardName && p.cardName.toLowerCase().includes(card.name.toLowerCase()));
 
       let openInvoiceAmount = 0;
@@ -374,10 +634,10 @@ export class FinancialEngine {
 
       // Transactions
       cardTxns.forEach(t => {
-        if (t.type === 'DESPESA') {
+        if (t.type === 'DESPESA' && t.status !== 'CANCELADA') {
           if (t.date.startsWith(activeMonth)) {
             openInvoiceAmount += t.amount;
-          } else if (t.date < activeMonth && t.status !== 'PAGO') {
+          } else if (t.date < activeMonth && t.status !== 'PAGA' && t.status !== 'PAGO') {
             closedInvoiceAmount += t.amount;
           }
           items.push({
@@ -391,16 +651,18 @@ export class FinancialEngine {
 
       // Installment parcels
       cardParcels.forEach(p => {
-        if (p.dueDate.startsWith(activeMonth)) {
-          openInvoiceAmount += p.parcelValue;
-          items.push({
-            description: `${p.item} (${p.parcelNumber}/${p.totalParcels}x)`,
-            amount: p.parcelValue,
-            date: p.dueDate,
-            category: 'Parcelamento'
-          });
-        } else if (p.dueDate < activeMonth && p.status !== 'PAGO') {
-          closedInvoiceAmount += p.parcelValue;
+        if (p.status !== 'CANCELADA') {
+          if (p.dueDate.startsWith(activeMonth)) {
+            openInvoiceAmount += p.parcelValue;
+            items.push({
+              description: `${p.item} (${p.parcelNumber}/${p.totalParcels}x)`,
+              amount: p.parcelValue,
+              date: p.dueDate,
+              category: 'Parcelamento'
+            });
+          } else if (p.dueDate < activeMonth && p.status !== 'PAGA' && p.status !== 'PAGO') {
+            closedInvoiceAmount += p.parcelValue;
+          }
         }
       });
 
@@ -429,7 +691,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 9. Calendar Events Engine (Filtered strictly by activeMonth)
+   * 14. Calendar Events Engine (Filtered strictly by activeMonth)
    * NO MOCK DATA. Returns real database items mapped to days 1..31 of month.
    */
   static getCalendarEvents(
@@ -438,12 +700,11 @@ export class FinancialEngine {
     installments: InstallmentContract[] = [],
     subscriptions: Subscription[] = []
   ) {
-    const year = parseInt(activeMonth.substring(0, 4));
-    const month = parseInt(activeMonth.substring(5, 7));
+    const year = parseInt(activeMonth.substring(0, 4)) || 2026;
+    const month = parseInt(activeMonth.substring(5, 7)) || 8;
 
-    // Calculate empty start spaces for month grid
     const firstDay = new Date(year, month - 1, 1);
-    const emptySpaces = firstDay.getDay(); // 0 = Sunday
+    const emptySpaces = firstDay.getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
 
     const eventsByDay: Record<number, CalendarEventItem[]> = {};
@@ -451,9 +712,9 @@ export class FinancialEngine {
       eventsByDay[d] = [];
     }
 
-    // 1. Transactions
+    // 1. Real Transactions from DB
     (transactions || []).forEach(t => {
-      if (t.date && t.date.startsWith(activeMonth)) {
+      if (t.date && t.date.startsWith(activeMonth) && t.status !== 'CANCELADA') {
         const dayNum = parseInt(t.date.substring(8, 10));
         if (dayNum >= 1 && dayNum <= daysInMonth) {
           eventsByDay[dayNum].push({
@@ -470,7 +731,7 @@ export class FinancialEngine {
       }
     });
 
-    // 2. Subscriptions
+    // 2. Active Subscriptions
     (subscriptions || []).filter(s => s.active).forEach(s => {
       const dayNum = Math.min(s.dueDate, daysInMonth);
       const dayStr = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
@@ -479,7 +740,7 @@ export class FinancialEngine {
         title: s.name,
         amount: s.amount,
         type: 'DESPESA',
-        status: 'PENDENTE',
+        status: 'PREVISTA',
         category: s.category || 'Assinatura',
         sourceEntity: 'SUBSCRIPTION',
         date: `${activeMonth}-${dayStr}`
@@ -488,7 +749,7 @@ export class FinancialEngine {
 
     // 3. Installments
     const parcels = this.expandInstallments(installments);
-    parcels.filter(p => p.dueDate.startsWith(activeMonth)).forEach(p => {
+    parcels.filter(p => p.dueDate.startsWith(activeMonth) && p.status !== 'CANCELADA').forEach(p => {
       const dayNum = parseInt(p.dueDate.substring(8, 10));
       if (dayNum >= 1 && dayNum <= daysInMonth) {
         eventsByDay[dayNum].push({
@@ -518,8 +779,8 @@ export class FinancialEngine {
   }
 
   /**
-   * 10. Future Cash Flow Timeline Engine
-   * Dynamically constructs timeline nodes from database entities
+   * 15. Future Cash Flow Timeline Engine
+   * Constructs timeline nodes strictly from real database entities
    */
   static getFutureCashFlowTimeline(
     accounts: BankAccount[] = [],
@@ -545,8 +806,8 @@ export class FinancialEngine {
       sourceEntity: 'ACCOUNT'
     });
 
-    // 1. Pending Future Transactions
-    (transactions || []).filter(t => t.status === 'PENDENTE').forEach(t => {
+    // 1. Unpaid Future Transactions
+    (transactions || []).filter(t => t.status !== 'PAGA' && t.status !== 'PAGO' && t.status !== 'CANCELADA').forEach(t => {
       const isEntrance = t.type === 'RECEITA';
       nodes.push({
         id: `t_txn_${t.id}`,
@@ -579,9 +840,9 @@ export class FinancialEngine {
       });
     });
 
-    // 3. Installments Parcels
+    // 3. Unpaid Installment Parcels
     const parcels = this.expandInstallments(installments);
-    parcels.filter(p => p.status === 'PENDENTE').forEach(p => {
+    parcels.filter(p => p.status !== 'PAGA' && p.status !== 'PAGO' && p.status !== 'CANCELADA').forEach(p => {
       const d = p.dueDate;
       nodes.push({
         id: `t_inst_${p.id}`,
@@ -601,7 +862,6 @@ export class FinancialEngine {
     const baseNode = nodes[0];
     const restNodes = nodes.slice(1).sort((a, b) => a.dateStr.localeCompare(b.dateStr));
 
-    // Calculate running balance mathematically
     let currentSum = baseNode.amount;
     const finalNodes: TimelineNodeItem[] = [baseNode];
 
@@ -621,7 +881,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 11. Historical Cash Flow Data for Reports (Last 6 Months)
+   * 16. Historical Cash Flow Data for Reports (Last 6 Months)
    */
   static getHistoricalCashFlow(transactions: Transaction[] = []) {
     const months = ['03', '04', '05', '06', '07', '08'];
@@ -632,7 +892,7 @@ export class FinancialEngine {
       let inVal = 0;
       let outVal = 0;
 
-      (transactions || []).filter(t => t.date && t.date.startsWith(prefix)).forEach(t => {
+      (transactions || []).filter(t => t.date && t.date.startsWith(prefix) && t.status !== 'CANCELADA').forEach(t => {
         if (t.type === 'RECEITA') inVal += t.amount;
         else if (t.type === 'DESPESA') outVal += t.amount;
       });
@@ -646,7 +906,7 @@ export class FinancialEngine {
   }
 
   /**
-   * 12. Consolidates AI Coach Summary object
+   * 17. Consolidates AI Coach Summary object
    */
   static getAiCoachSummary(
     userName: string,

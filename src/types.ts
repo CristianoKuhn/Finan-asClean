@@ -37,6 +37,44 @@ export interface ApiEndpoint {
   codeSnippet: string;
 }
 
+export type FinancialStatus = 
+  | 'PREVISTA' 
+  | 'A_VENCER' 
+  | 'VENCE_HOJE' 
+  | 'PAGA' 
+  | 'ATRASADA' 
+  | 'CANCELADA' 
+  | 'PAGO' 
+  | 'PENDENTE';
+
+export interface FinancialPayment {
+  id: string;
+  transactionId: string;
+  amountPaid: number;
+  paymentDate: string;
+  accountId?: string;
+  cardId?: string;
+  notes?: string;
+}
+
+export interface FinancialObligation {
+  id: string;
+  description: string;
+  amount: number;
+  type: 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA' | 'INVESTIMENTO';
+  category: string;
+  subcategory?: string;
+  recurrenceType?: 'MENSAL' | 'ANUAL' | 'UNICA' | 'PARCELADA';
+  dueDay?: number;
+  totalParcels?: number;
+  startDate: string;
+  accountId?: string;
+  cardId?: string;
+  paymentMethod: 'PIX' | 'DINHEIRO' | 'DEBITO' | 'CREDITO' | 'BOLETO' | 'TED';
+  notes?: string;
+  active: boolean;
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -51,7 +89,12 @@ export interface Transaction {
   time: string;
   notes?: string;
   attachmentName?: string;
-  status: 'PAGO' | 'PENDENTE';
+  status: FinancialStatus;
+  paidAt?: string;
+  paidAmount?: number;
+  obligationId?: string;
+  installmentNumber?: number;
+  totalInstallments?: number;
   tags?: string[];
   location?: string;
   relatedPerson?: string;
@@ -135,6 +178,6 @@ export interface InstallmentParcel {
   totalParcels: number;
   parcelValue: number;
   dueDate: string;
-  status: 'PAGO' | 'PENDENTE';
+  status: FinancialStatus;
   cardName: string;
 }

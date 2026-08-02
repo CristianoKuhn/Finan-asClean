@@ -130,7 +130,7 @@ function PhoneEmulatorWrapper({ enabled, onDisable, children }: PhoneWrapperProp
 
 interface QuickExpenseLoggerWidgetProps {
   accounts: BankAccount[];
-  onAddTransaction: (description: string, value: string, category: string, accountId: string) => void;
+  onAddTransaction: (description: string, value: string, category: string, accountId: string, isPaid: boolean) => void;
 }
 
 function QuickExpenseLoggerWidget({ accounts, onAddTransaction }: QuickExpenseLoggerWidgetProps) {
@@ -138,6 +138,7 @@ function QuickExpenseLoggerWidget({ accounts, onAddTransaction }: QuickExpenseLo
   const [value, setValue] = useState('');
   const [category, setCategory] = useState('Alimentação');
   const [accountId, setAccountId] = useState(accounts[0]?.id || 'acc_01');
+  const [isPaid, setIsPaid] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   // Sync state if accounts load later
@@ -151,9 +152,10 @@ function QuickExpenseLoggerWidget({ accounts, onAddTransaction }: QuickExpenseLo
     e.preventDefault();
     if (!description || !value) return;
     
-    onAddTransaction(description, value, category, accountId);
+    onAddTransaction(description, value, category, accountId, isPaid);
     setDescription('');
     setValue('');
+    setIsPaid(false);
     setFeedback('Lançamento registrado! ⚡');
     setTimeout(() => setFeedback(null), 2500);
   };
@@ -215,7 +217,19 @@ function QuickExpenseLoggerWidget({ accounts, onAddTransaction }: QuickExpenseLo
         </div>
       </div>
 
-      <div className="pt-1.5 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 pt-1">
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={isPaid}
+            onChange={(e) => setIsPaid(e.target.checked)}
+            className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-teal-500 focus:ring-teal-500"
+          />
+          <span className="text-[11px]">Registrar como pago imediatamente</span>
+        </label>
+      </div>
+
+      <div className="pt-1 flex items-center justify-between gap-2">
         <span className="text-[10px] text-emerald-400 font-medium h-4 inline-block">
           {feedback && feedback}
         </span>
@@ -782,32 +796,34 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
   const handleAddTransaction = (newTxn: Transaction) => {
     setTransactions(prev => [newTxn, ...prev]);
 
-    // Update balances
-    if (newTxn.paymentMethod === 'CREDITO') {
-      setCards(prev => prev.map(c => {
-        if (c.id === newTxn.cardId) {
-          const used = c.usedLimit + newTxn.amount;
-          return {
-            ...c,
-            usedLimit: used,
-            availableLimit: c.limit - used
-          };
-        }
-        return c;
-      }));
-    } else {
-      setAccounts(prev => prev.map(a => {
-        if (a.id === newTxn.accountId) {
-          let bal = a.balance;
-          if (newTxn.type === 'RECEITA') {
-            bal += newTxn.amount;
-          } else {
-            bal -= newTxn.amount;
+    // Update balances ONLY if status is PAGA/PAGO
+    if (newTxn.status === 'PAGA' || newTxn.status === 'PAGO') {
+      if (newTxn.paymentMethod === 'CREDITO') {
+        setCards(prev => prev.map(c => {
+          if (c.id === newTxn.cardId) {
+            const used = c.usedLimit + newTxn.amount;
+            return {
+              ...c,
+              usedLimit: used,
+              availableLimit: Math.max(0, c.limit - used)
+            };
           }
-          return { ...a, balance: bal };
-        }
-        return a;
-      }));
+          return c;
+        }));
+      } else if (newTxn.accountId) {
+        setAccounts(prev => prev.map(a => {
+          if (a.id === newTxn.accountId) {
+            let bal = a.balance;
+            if (newTxn.type === 'RECEITA') {
+              bal += newTxn.amount;
+            } else if (newTxn.type === 'DESPESA') {
+              bal -= newTxn.amount;
+            }
+            return { ...a, balance: Math.max(0, parseFloat(bal.toFixed(2))) };
+          }
+          return a;
+        }));
+      }
     }
 
     // Map and post to sheets
@@ -823,10 +839,39 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
       forma_pagamento: newTxn.paymentMethod,
       data_competencia: newTxn.date.substring(0, 7),
       data_hora: `${newTxn.date}T${newTxn.time || '12:00'}:00.000Z`,
-      status: newTxn.status || 'PAGO'
+      status: newTxn.status || 'PREVISTA'
     };
 
     postToSheets('CRIAR', 'lancamentos', sheetsData);
+  };
+
+  const handlePayTransaction = (id: string) => {
+    const target = transactions.find(t => t.id === id);
+    if (!target) return;
+
+    const { updatedTransaction, updatedAccounts } = FinancialEngine.payExpense(target, '2026-08-02', target.accountId, accounts);
+    
+    setTransactions(prev => prev.map(t => t.id === id ? updatedTransaction : t));
+    if (updatedAccounts && updatedAccounts.length > 0) {
+      setAccounts(updatedAccounts);
+    }
+
+    const sheetsData = {
+      id: updatedTransaction.id,
+      descricao: updatedTransaction.description,
+      categoria_id: updatedTransaction.category,
+      subcategory_id: updatedTransaction.subcategory || '',
+      conta_id: updatedTransaction.accountId,
+      cartao_id: updatedTransaction.cardId || '',
+      valor: updatedTransaction.amount,
+      tipo: updatedTransaction.type,
+      forma_pagamento: updatedTransaction.paymentMethod,
+      data_competencia: updatedTransaction.date.substring(0, 7),
+      data_hora: `${updatedTransaction.date}T${updatedTransaction.time || '12:00'}:00.000Z`,
+      status: 'PAGO'
+    };
+
+    postToSheets('EDITAR', 'lancamentos', sheetsData);
   };
 
   const handleEditTransaction = (updatedTxn: Transaction) => {
@@ -1743,21 +1788,19 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
 
                     <QuickExpenseLoggerWidget 
                       accounts={accounts} 
-                      onAddTransaction={(desc, val, cat, accId) => {
-                        const newTxn: Transaction = {
-                          id: `txn_${Math.random().toString(36).substring(2, 9)}`,
+                      onAddTransaction={(desc, val, cat, accId, isPaid) => {
+                        const todayStr = new Date().toISOString().substring(0, 10);
+                        const result = FinancialEngine.createExpense({
                           description: desc,
                           amount: parseFloat(val),
                           type: 'DESPESA',
                           category: cat,
-                          subcategory: 'Lançamento Rápido',
                           accountId: accId,
                           paymentMethod: 'PIX',
-                          date: new Date().toISOString().substring(0, 10),
-                          time: new Date().toTimeString().substring(0, 5),
-                          status: 'PAGO'
-                        };
-                        handleAddTransaction(newTxn);
+                          date: todayStr,
+                          isPaidImmediately: isPaid
+                        });
+                        handleAddTransaction(result.transaction);
                       }} 
                     />
                   </div>
@@ -2173,6 +2216,7 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
               onAddTransaction={handleAddTransaction}
               onEditTransaction={handleEditTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              onPayTransaction={handlePayTransaction}
               editingTransactionId={editingTransactionId}
               setEditingTransactionId={setEditingTransactionId}
             />
