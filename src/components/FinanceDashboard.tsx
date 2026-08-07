@@ -874,6 +874,18 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
     postToSheets('EDITAR', 'lancamentos', sheetsData);
   };
 
+  const handleAddInstallment = (inst: InstallmentContract) => {
+    setInstallments(prev => [inst, ...prev]);
+  };
+
+  const handleUpdateInstallment = (inst: InstallmentContract) => {
+    setInstallments(prev => prev.map(i => i.id === inst.id ? inst : i));
+  };
+
+  const handleDeleteInstallment = (id: string) => {
+    setInstallments(prev => prev.filter(i => i.id !== id));
+  };
+
   const handleEditTransaction = (updatedTxn: Transaction) => {
     setTransactions(prev => prev.map(t => t.id === updatedTxn.id ? updatedTxn : t));
     
@@ -2249,9 +2261,13 @@ export default function FinanceDashboard({ onLogApiCall }: FinanceDashboardProps
               subscriptions={subscriptions}
               transactions={transactions}
               cards={cards}
+              installments={installments}
               onAddGoal={handleAddGoal}
               onAddSubscription={handleAddSubscription}
               onDepositToGoal={handleDepositToGoal}
+              onAddInstallment={handleAddInstallment}
+              onUpdateInstallment={handleUpdateInstallment}
+              onDeleteInstallment={handleDeleteInstallment}
             />
           )}
 

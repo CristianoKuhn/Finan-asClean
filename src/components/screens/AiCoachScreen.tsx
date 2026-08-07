@@ -15,6 +15,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Transaction, BankAccount, CreditCard, FinancialGoal, Subscription, Investment } from '../../types';
+import { FinancialEngine } from '../../services/financialEngine';
 
 interface AiCoachScreenProps {
   userName: string;
@@ -90,6 +91,18 @@ export function AiCoachScreen({
     setIsLoading(true);
     setError(null);
     try {
+      const summaryData = FinancialEngine.getAiCoachSummary(
+        userName,
+        activeMonth,
+        transactions,
+        accounts,
+        cards,
+        goals,
+        subscriptions,
+        investments,
+        []
+      );
+
       const response = await fetch('/api/ai/coach', {
         method: 'POST',
         headers: {
@@ -103,7 +116,8 @@ export function AiCoachScreen({
           cards,
           goals,
           subscriptions,
-          investments
+          investments,
+          financialEngineSummary: summaryData
         })
       });
 

@@ -26,17 +26,8 @@ import {
   Award,
   X
 } from 'lucide-react';
-import { FinancialGoal, Subscription, Transaction, CreditCard } from '../../types';
-
-interface InstallmentContract {
-  id: string;
-  item: string;
-  totalAmount: number;
-  parcelValue: number;
-  currentParcel: number;
-  totalParcels: number;
-  cardName: string;
-}
+import { FinancialGoal, Subscription, Transaction, CreditCard, InstallmentContract } from '../../types';
+import { FinancialEngine } from '../../services/financialEngine';
 
 interface PlanningScreensProps {
   currentScreen: 'parcelamentos' | 'assinaturas' | 'metas';
@@ -45,9 +36,13 @@ interface PlanningScreensProps {
   subscriptions: Subscription[];
   transactions: Transaction[];
   cards?: CreditCard[];
+  installments?: InstallmentContract[];
   onAddGoal: (goal: FinancialGoal) => void;
   onAddSubscription: (sub: Subscription) => void;
   onDepositToGoal: (id: string, amount: number) => void;
+  onAddInstallment?: (inst: InstallmentContract) => void;
+  onUpdateInstallment?: (inst: InstallmentContract) => void;
+  onDeleteInstallment?: (id: string) => void;
 }
 
 export function PlanningScreens({
@@ -57,10 +52,28 @@ export function PlanningScreens({
   subscriptions,
   transactions,
   cards = [],
+  installments: parentInstallments = [],
   onAddGoal,
   onAddSubscription,
-  onDepositToGoal
+  onDepositToGoal,
+  onAddInstallment,
+  onUpdateInstallment,
+  onDeleteInstallment
 }: PlanningScreensProps) {
+  // Local fallback state if parent doesn't provide
+  const [localInstallments, setLocalInstallments] = useState<InstallmentContract[]>(() => {
+    const cached = localStorage.getItem('financas_pro_installments');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const installments = parentInstallments.length > 0 ? parentInstallments : localInstallments;
+
   // Local forms states
   const [goalName, setGoalName] = useState('');
   const [goalDesc, setGoalDesc] = useState('');
@@ -77,22 +90,6 @@ export function PlanningScreens({
   // Interactive addition of deposits to goals
   const [depositGoalId, setDepositGoalId] = useState<string>('');
   const [depositValue, setDepositValue] = useState<string>('');
-
-  // Local persistent installments (Parcelamentos) - default empty, NO sample items
-  const [installments, setInstallments] = useState<InstallmentContract[]>(() => {
-    const cached = localStorage.getItem('financas_pro_installments');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('financas_pro_installments', JSON.stringify(installments));
-  }, [installments]);
 
   // Form for new installment
   const [instItem, setInstItem] = useState('');
@@ -166,22 +163,21 @@ export function PlanningScreens({
     e.preventDefault();
     if (!instItem || !instTotal || !instParcels) return;
 
-    const totalVal = parseFloat(instTotal);
-    const parCount = parseInt(instParcels) || 10;
-    const currentPar = parseInt(instCurrentParcel) || 1;
-    const splitVal = parseFloat((totalVal / parCount).toFixed(2));
-
-    const newInst: InstallmentContract = {
-      id: `ins_${Math.random().toString(36).substring(2, 9)}`,
+    const { contract } = FinancialEngine.createInstallmentContract({
       item: instItem,
-      totalAmount: totalVal,
-      parcelValue: splitVal,
-      currentParcel: currentPar,
-      totalParcels: parCount,
-      cardName: instCardName || 'Nubank Ultravioleta'
-    };
+      totalAmount: parseFloat(instTotal),
+      totalParcels: parseInt(instParcels) || 10,
+      cardName: instCardName || 'Nubank Ultravioleta',
+      todayStr: '2026-08-02'
+    });
+    contract.currentParcel = parseInt(instCurrentParcel) || 1;
 
-    setInstallments(prev => [newInst, ...prev]);
+    if (onAddInstallment) {
+      onAddInstallment(contract);
+    } else {
+      setLocalInstallments(prev => [contract, ...prev]);
+    }
+
     setInstItem('');
     setInstTotal('');
     setInstCurrentParcel('1');
@@ -193,26 +189,31 @@ export function PlanningScreens({
     const currentPar = parseInt(editInstCurrentParcel) || 1;
     const splitVal = parseFloat((totalVal / parCount).toFixed(2));
 
-    setInstallments(prev => prev.map(inst => {
-      if (inst.id === id) {
-        return {
-          ...inst,
-          item: editInstItem || inst.item,
-          totalAmount: isNaN(totalVal) ? inst.totalAmount : totalVal,
-          totalParcels: parCount,
-          parcelValue: isNaN(splitVal) ? inst.parcelValue : splitVal,
-          currentParcel: currentPar,
-          cardName: editInstCardName || inst.cardName
-        };
-      }
-      return inst;
-    }));
+    const updated: InstallmentContract = {
+      id,
+      item: editInstItem,
+      totalAmount: isNaN(totalVal) ? 0 : totalVal,
+      totalParcels: parCount,
+      parcelValue: isNaN(splitVal) ? 0 : splitVal,
+      currentParcel: currentPar,
+      cardName: editInstCardName || 'Nubank'
+    };
+
+    if (onUpdateInstallment) {
+      onUpdateInstallment(updated);
+    } else {
+      setLocalInstallments(prev => prev.map(inst => inst.id === id ? { ...inst, ...updated } : inst));
+    }
     setEditingInstId(null);
   };
 
   const handleDeleteInstallment = (id: string) => {
     if (confirm('Deseja realmente excluir este cronograma parcelado?')) {
-      setInstallments(prev => prev.filter(inst => inst.id !== id));
+      if (onDeleteInstallment) {
+        onDeleteInstallment(id);
+      } else {
+        setLocalInstallments(prev => prev.filter(inst => inst.id !== id));
+      }
     }
   };
 
